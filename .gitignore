@@ -21,3 +21,6 @@ data/
 
 # Modelos descargados
 models/
+
+# Binario del helper de audio
+scripts/make_multioutput

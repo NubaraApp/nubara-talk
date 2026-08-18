@@ -49,6 +49,31 @@ pkgutil --pkgs | grep -i blackhole
 
 ## 2. Crear el Multi-Output Device
 
+### Opción rápida: el helper
+
+`scripts/make_multioutput.swift` crea exactamente el mismo objeto de Core Audio que la
+GUI —un dispositivo agregado apilado— y lo deja como salida por defecto. No pide
+contraseña: crear un agregado no requiere privilegios.
+
+```bash
+swiftc -O scripts/make_multioutput.swift -o /tmp/make_multioutput && /tmp/make_multioutput
+```
+
+Acepta subcadenas para elegir los dispositivos, por si tu salida real no son las bocinas
+integradas:
+
+```bash
+/tmp/make_multioutput "AirPods" "BlackHole"
+```
+
+Es idempotente: si ya existe un agregado con el UID `com.granola-local.multioutput`, lo
+destruye y lo vuelve a crear.
+
+Para volver atrás, elegí tu salida normal en el menú de volumen. Para borrar el
+dispositivo, sacalo desde Configuración de Audio MIDI con el `-`.
+
+### Opción manual: la GUI
+
 Sin esto vas a oír silencio: BlackHole se traga el audio y no lo devuelve a los parlantes.
 
 1. Abrí **Configuración de Audio MIDI** (`/Applications/Utilities/Audio MIDI Setup.app`).

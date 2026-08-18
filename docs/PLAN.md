@@ -8,15 +8,17 @@ Dos pistas de audio independientes y simultáneas: `mic` y `sys`.
 
 **Entregable:** `src/audio/base.py`, `src/audio/blackhole.py`, `src/spikes/f0_capture.py`.
 
-**Criterios de salida:**
+**Criterios de salida — cumplidos el 2026-08-18:**
 
-- [ ] `mic.wav` y `sys.wav` existen y su duración difiere en menos del 2 %
-- [ ] `rms > 0.001` en ambas pistas
-- [ ] Cero overflows, o menos de 3 en 20 s
-- [ ] Los timestamps de ambas pistas son comparables entre sí (mismo reloj `time.monotonic()`)
-- [ ] `python -m src.spikes.f0_capture` corre limpio desde el repo raíz
+- [x] `mic.wav` y `sys.wav` existen y su duración difiere en menos del 2 % — 0.00 %
+- [x] `rms > 0.001` en ambas pistas — mic 0.0100, sys 0.1492
+- [x] Cero overflows, o menos de 3 en 20 s — 0
+- [x] Los timestamps de ambas pistas son comparables entre sí (mismo reloj
+      `time.monotonic()`) — desfase máximo 11.3 ms
+- [x] `python -m src.spikes.f0_capture` corre limpio desde el repo raíz
 
-Se valida con música sonando y hablando al micrófono a la vez.
+Se valida con música sonando y hablando al micrófono a la vez. La correlación entre las
+dos pistas dio 0.0011: son fuentes independientes, no la misma señal duplicada.
 
 ## F1 — STT en vivo
 

@@ -85,7 +85,13 @@ else:
 
 try:
     out = sd.query_devices(kind="output")
-    print(f"  [info] salida por defecto: {out['name']}")
+    folded = out["name"].lower()
+    if any(h in folded for h in ("multi-output", "multi output", "aggregate", "agregado")):
+        print(f"  [ok]   salida por defecto: {out['name']}")
+    else:
+        print(f"  [FALTA] salida por defecto: {out['name']} — no es un Multi-Output")
+        print("          swiftc -O scripts/make_multioutput.swift -o /tmp/make_multioutput")
+        print("          /tmp/make_multioutput")
 except Exception as exc:  # noqa: BLE001
     print(f"  [info] no pude leer la salida por defecto: {exc}")
 
