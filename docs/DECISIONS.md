@@ -116,3 +116,42 @@ WebSocket local.
 **Motivo:** el núcleo de audio y ML es Python y no se va a reescribir. Tauri da una app
 nativa liviana sin empaquetar Chromium. El WebSocket local es la frontera más simple
 entre los dos procesos.
+
+---
+
+## ADR-010 — Una instancia de Silero VAD por pista
+
+**Decisión:** cada `TurnDetector` carga su propio modelo de VAD. `TurnDetector` lo carga
+solo si no se lo pasan, para que compartirlo requiera hacerlo a propósito.
+
+**Motivo:** el modelo es un LSTM con estado. Compartirlo entre las dos pistas mezcla el
+contexto de una con el de la otra, y las decisiones de habla/silencio salen mal. Peor:
+usarlo desde dos hilos a la vez corrompe el heap de torch. El proceso muere con SIGTRAP y
+`BUG IN CLIENT OF LIBMALLOC: memory corruption of free block` dentro de
+`slow_conv2d_forward_cpu`. Un test aislado de 600 iteraciones concurrentes no lo disparó;
+la captura real sí, en menos de diez segundos.
+
+**Costo aceptado:** ninguno medible. El modelo pesa ~2 MB y su costo por frame es de
+0.069 ms.
+
+**No confundir con ADR-004:** el modelo de STT sí es uno solo compartido. Ahí la
+compartición es deliberada y está protegida por un lock y una cola, porque el modelo pesa
+gigabytes y compite por la GPU. El VAD es lo contrario: barato y con estado por pista.
+
+---
+
+## ADR-011 — Turnos con corte por duración máxima y parciales
+
+**Decisión:** el detector cierra un turno por silencio, pero también a los 15 s aunque el
+habla siga. Mientras el turno está abierto emite parciales cada 2.5 s, que se guardan como
+`provisional` y se pisan cuando el turno cierra como `confirmed`.
+
+**Motivo:** `VADIterator`, el helper que trae silero-vad, solo cierra por silencio. Con
+habla continua nunca emite el fin del turno: alguien que habla dos minutos seguidos no
+produciría ni una línea hasta callarse. El corte por duración garantiza un piso de
+frecuencia de actualización, y los parciales hacen que el texto aparezca mientras la
+persona todavía está hablando.
+
+**Costo aceptado:** un corte forzado puede caer en mitad de una palabra. Es el mismo
+problema que ADR-005 quería evitar, pero acotado: pasa una vez cada 15 s de habla continua
+en lugar de en cada ventana.
