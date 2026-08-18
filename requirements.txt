@@ -14,5 +14,8 @@ ctranslate2>=4.5
 transformers>=4.40
 sentencepiece>=0.2
 
+# F5 — UI. El sidecar habla con la ventana por un WebSocket en 127.0.0.1.
+websockets>=13
+
 # Fallback para Intel. No se instala por defecto: en Apple Silicon no se usa nunca.
 #   pip install faster-whisper

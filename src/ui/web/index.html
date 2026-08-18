@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>granola-local</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>granola-local</h1>
+    <span id="dot" class="dot" title="desconectado"></span>
+    <span id="status">conectando…</span>
+    <div class="spacer"></div>
+    <label>Ellos <select id="lang-sys"><option value="en">inglés</option><option value="es">español</option><option value="">auto</option></select></label>
+    <label>Yo <select id="lang-mic"><option value="en">inglés</option><option value="es" selected>español</option><option value="">auto</option></select></label>
+    <label><input type="checkbox" id="traducir" checked /> traducir a español</label>
+    <button id="toggle" class="primary">Empezar</button>
+  </header>
+
+  <main>
+    <section id="stream-pane">
+      <div id="stream" class="stream"></div>
+      <div id="empty" class="empty">Nada todavía. Dale a <b>Empezar</b>, o cargá una sesión anterior.</div>
+    </section>
+
+    <aside>
+      <div class="card">
+        <h2>Fragmento seleccionado</h2>
+        <p id="selcount" class="muted">Ninguno. Hacé clic en las burbujas para elegir.</p>
+        <div class="row">
+          <select id="cli"></select>
+          <button id="clear">Limpiar</button>
+        </div>
+        <div id="prompts" class="prompts"></div>
+        <div id="answer" class="answer hidden"></div>
+      </div>
+
+      <div class="card">
+        <h2>Buscar</h2>
+        <div class="row">
+          <input id="q" type="search" placeholder="palabra o frase…" />
+          <label class="muted"><input type="checkbox" id="only-session" /> sólo esta sesión</label>
+        </div>
+        <div id="results"></div>
+      </div>
+
+      <div class="card">
+        <h2>Sesiones</h2>
+        <div id="sessions"></div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
