@@ -1,0 +1,43 @@
+# Plantillas de prompts para el puente LLM (F2). Esqueleto: todavía no se leen.
+#
+# Cada plantilla recibe:
+#   {fragmento}  el texto seleccionado de la transcripción
+#   {contexto}   los N segmentos previos, para dar contexto
+#   {idioma}     idioma en el que se quiere la salida
+#
+# El LLM se invoca por CLI. Sin claves de API acá ni en ningún otro lado del repo.
+
+version: 1
+
+prompts:
+  - id: responder
+    nombre: Redactar respuesta
+    descripcion: Redacta una respuesta a lo que se acaba de decir.
+    plantilla: |
+      Contexto de la reunión:
+      {contexto}
+
+      Lo que acaban de decir:
+      {fragmento}
+
+      Redactá una respuesta breve y profesional en {idioma}. Solo la respuesta,
+      sin preámbulo.
+
+  - id: traducir_bien
+    nombre: Traducir con cuidado
+    descripcion: Traducción de calidad, más lenta que la del subtitulado en vivo.
+    plantilla: |
+      Traducí al {idioma}, respetando el registro y la terminología técnica:
+
+      {fragmento}
+
+  - id: aclarar
+    nombre: Explicar qué quisieron decir
+    descripcion: Desambigua jerga, siglas o una frase confusa.
+    plantilla: |
+      Contexto de la reunión:
+      {contexto}
+
+      Explicá en {idioma} qué significa esto, incluyendo cualquier sigla o jerga:
+
+      {fragmento}

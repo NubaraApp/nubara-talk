@@ -1,0 +1,5 @@
+# F0 — captura dual. Nada más entra acá hasta que F0 pase.
+numpy>=1.26,<3
+sounddevice>=0.4.6
+soxr>=0.3.7
+PyYAML>=6.0
