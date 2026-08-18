@@ -49,7 +49,18 @@ if [[ -d "$HAL_DIR/BlackHole2ch.driver" ]]; then
   echo "  [ok]   BlackHole 2ch instalado"
 else
   echo "  [FALTA] BlackHole 2ch no está en $HAL_DIR"
-  echo "          brew install --cask blackhole-2ch"
+
+  # brew puede registrar el cask y bajar el .pkg sin que el instalador haya corrido
+  # nunca: pasa si el sudo falló. Reintentar `brew install` no arregla nada, porque
+  # brew lo da por instalado y no hace nada.
+  PKG="$(ls -1 /opt/homebrew/Caskroom/blackhole-2ch/*/BlackHole2ch-*.pkg 2>/dev/null | head -1 || true)"
+  if [[ -n "$PKG" ]]; then
+    echo "          El cask está registrado pero el instalador nunca corrió."
+    echo "          Corré esto en una terminal interactiva (pide contraseña):"
+    echo "            sudo installer -pkg $PKG -target /"
+  else
+    echo "          brew install --cask blackhole-2ch"
+  fi
   echo "          sudo killall coreaudiod    # o reiniciá la Mac"
 fi
 

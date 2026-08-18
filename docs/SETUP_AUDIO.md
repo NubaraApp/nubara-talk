@@ -31,6 +31,22 @@ ls /Library/Audio/Plug-Ins/HAL/
 
 Tiene que aparecer `BlackHole2ch.driver`.
 
+### Si `brew list --cask` lo muestra pero el driver no está
+
+Pasa cuando el `sudo` del instalador falla: brew registra el cask, baja el `.pkg` y
+nunca corre el instalador. Reintentar `brew install` no sirve — brew lo da por instalado
+y no hace nada. Corré el `.pkg` a mano:
+
+```bash
+sudo installer -pkg /opt/homebrew/Caskroom/blackhole-2ch/*/BlackHole2ch-*.pkg -target /
+```
+
+Confirmar que quedó bien:
+
+```bash
+pkgutil --pkgs | grep -i blackhole
+```
+
 ## 2. Crear el Multi-Output Device
 
 Sin esto vas a oír silencio: BlackHole se traga el audio y no lo devuelve a los parlantes.
