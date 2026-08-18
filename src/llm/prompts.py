@@ -35,6 +35,10 @@ class PromptTemplate:
     idioma: str = "propio"
     # CLI preferida para esta plantilla. Si no está instalada, se usa la de siempre.
     cli: str = ""
+    # Id de la plantilla que amplía a esta. La ventana la dispara sola apenas
+    # termina la respuesta corta, para que la larga se vaya escribiendo mientras
+    # se lee la corta.
+    ampliar_con: str = ""
 
     @property
     def usa_respuesta(self) -> bool:
@@ -103,9 +107,15 @@ def load(path: Path | str = DEFAULT_CONFIG) -> Config:
             corto=entry.get("corto") or entry["nombre"],
             idioma=entry.get("idioma", "propio"),
             cli=entry.get("cli", ""),
+            ampliar_con=entry.get("ampliar_con", ""),
         )
 
     for template in prompts.values():
+        if template.ampliar_con and template.ampliar_con not in prompts:
+            raise RuntimeError(
+                f"{path}: el prompt {template.id!r} amplía con "
+                f"{template.ampliar_con!r}, que no existe."
+            )
         if template.idioma not in ("fragmento", "propio"):
             raise RuntimeError(
                 f"{path}: el prompt {template.id!r} tiene idioma={template.idioma!r}. "

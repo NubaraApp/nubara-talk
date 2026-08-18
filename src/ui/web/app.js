@@ -351,8 +351,12 @@ function answerCard(data) {
   renderAnswerText(card.querySelector(".body"), data.text || "");
   card.dataset.turnos = data.turnos || JSON.stringify(data.keys || []);
   card.dataset.id = data.id || "";
-  el("answers").prepend(card);
+  // Orden de lectura, no de novedad: la corta arriba y su ampliación justo debajo. Si
+  // la ampliación se agregara arriba, empujaría hacia abajo la respuesta que se está
+  // leyendo mientras crece.
+  el("answers").appendChild(card);
   el("answers-empty").classList.add("hidden");
+  el("answers").scrollTop = el("answers").scrollHeight;
   return card;
 }
 
@@ -397,6 +401,17 @@ function onAnswerChunk(msg) {
     pendingCard.dataset.streaming = "1";
   }
   body.textContent += msg.text;
+  const box = el("answers");
+  // Sólo seguir el texto si ya se estaba mirando el final: si el usuario subió a
+  // releer una respuesta anterior, no se le mueve la vista.
+  if (box.scrollHeight - box.scrollTop - box.clientHeight < 60) {
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+function expansionOf(templateId) {
+  const found = templates.find((t) => t.id === templateId);
+  return found && found.ampliar_con ? found.ampliar_con : null;
 }
 
 function onAnswer(msg) {
@@ -411,14 +426,31 @@ function onAnswer(msg) {
   fillActions(card);
   pendingCard = null;
   countAnswers();
+
+  // La ampliación arranca sola apenas está la corta. No se lanzan las dos a la vez a
+  // propósito: ollama atiende una generación por vez, así que pedir la larga en
+  // paralelo retrasaría justo la que se quiere leer ya. Y la larga necesita la corta
+  // como entrada. Mientras se lee la de arriba, la de abajo se está escribiendo.
+  const next = msg.parent_id ? null : expansionOf(msg.template);
+  if (next && el("auto-ampliar").checked) {
+    let keys = [];
+    try {
+      keys = JSON.parse(card.dataset.turnos || "[]");
+    } catch (error) {
+      keys = [];
+    }
+    if (keys.length) {
+      askKeys(next, keys, { respuesta: msg.text, parent_id: msg.id || null });
+    }
+  }
 }
 
 function onAnswers(msg) {
   const box = el("answers");
   box.innerHTML = "";
   pendingCard = null;
-  // Llegan de la más nueva a la más vieja y cada tarjeta se agrega arriba, así que
-  // se recorren al revés para que el orden quede igual.
+  // Llegan de la más nueva a la más vieja; se recorren al revés porque las tarjetas
+  // se agregan abajo.
   for (const row of [...msg.rows].reverse()) {
     fillActions(answerCard(row));
   }
@@ -570,6 +602,19 @@ function setAside(px) {
   }
   return width;
 }
+
+(function setupAutoAmpliar() {
+  const box = el("auto-ampliar");
+  const stored = localStorage.getItem("auto-ampliar");
+  if (stored !== null) box.checked = stored === "1";
+  box.addEventListener("change", () => {
+    try {
+      localStorage.setItem("auto-ampliar", box.checked ? "1" : "0");
+    } catch (error) {
+      // Sin storage la preferencia dura lo que dure la ventana.
+    }
+  });
+})();
 
 (function setupSplitter() {
   const splitter = el("splitter");

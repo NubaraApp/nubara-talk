@@ -450,6 +450,13 @@ está instalada; si no, cae a la de siempre en vez de fallar. Y como usa `{respu
 la ventana sabe que no puede ofrecerla suelta: aparece como botón sobre cada respuesta
 ya escrita, no en la barra de la frase.
 
+**La ampliación se pide sola.** `responder` declara `ampliar_con: ampliar` y la ventana
+la dispara apenas llega la respuesta corta. No se lanzan las dos a la vez, aunque
+"al mismo tiempo" sea lo que uno querría: ollama atiende una generación por vez, así que
+pedir la larga en paralelo retrasaría justo la que se quiere leer ya — y además la larga
+necesita la corta como entrada. Encadenadas, la corta está en pantalla a los 0.7 s y la
+larga se escribe debajo mientras se lee. Se apaga desde Ajustes.
+
 ---
 
 ## ADR-030 — La ventana pinta el poco markdown que los modelos usan
@@ -463,3 +470,18 @@ tres marcas.
 **Seguridad:** el texto pasa por `escapeHtml` antes de cualquier reemplazo. Lo que
 devuelve el modelo nunca llega al DOM como etiquetas — y ese texto viene de una
 transcripción automática de lo que se dijo en una reunión, que no es una fuente confiable.
+
+---
+
+## ADR-031 — Las respuestas se apilan en orden de lectura, no de novedad
+
+**Decisión:** la más vieja arriba, la más nueva abajo, y la ampliación justo debajo de la
+respuesta que amplía. El panel sigue el final sólo si ya se estaba mirando el final.
+
+**Motivo:** la primera versión ponía la más nueva arriba, como una bandeja de entrada.
+Con la ampliación automática eso significaba que, mientras se leía la respuesta corta,
+la larga aparecía encima y la empujaba hacia abajo — justo la que se estaba leyendo.
+Este panel no es una bandeja: es una conversación que se lee de arriba hacia abajo.
+
+**Costo aceptado:** con muchas respuestas hay que bajar para ver la última. Por eso el
+panel sigue el final solo, y deja de seguirlo si el usuario subió a releer algo.

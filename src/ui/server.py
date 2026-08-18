@@ -313,6 +313,7 @@ class Hub:
                     # Las que amplían algo ya contestado no se ofrecen sueltas: la
                     # ventana las pone como botón sobre cada respuesta.
                     "usa_respuesta": t.usa_respuesta,
+                    "ampliar_con": t.ampliar_con,
                 }
                 for t in self._prompts.prompts.values()
             ],
@@ -390,7 +391,14 @@ class Hub:
         cli = bridge.LlmCli(spec, timeout_s=self._prompts.timeout_s)
         # Los trozos salen por el canal de broadcast a medida que el modelo escribe: la
         # respuesta completa tarda lo mismo, pero se empieza a leer varios segundos antes.
-        self.emit("answer_start", cli=spec.id, local=spec.local, idioma=idioma)
+        self.emit(
+            "answer_start",
+            template=template.id,
+            cli=spec.id,
+            local=spec.local,
+            idioma=idioma,
+            fragmento=fragmento,
+        )
         response = cli.run(prompt, on_chunk=lambda piece: self.emit("answer_chunk", text=piece))
 
         created_at = time.time()
@@ -412,6 +420,10 @@ class Hub:
             "created_at": created_at,
             "template": template.id,
             "fragmento": fragmento,
+            # Los turnos vuelven con la respuesta: son los que necesita la ventana
+            # para poder pedir una ampliación de esta misma respuesta.
+            "turnos": json.dumps(keys),
+            "parent_id": payload.get("parent_id"),
             "text": response.text,
             "idioma": idioma,
             "cli": response.cli_id,
