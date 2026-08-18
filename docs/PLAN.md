@@ -107,4 +107,6 @@ Tauri con sidecar Python. Se comunican por WebSocket local.
 - [x] Búsqueda FTS5 sobre sesiones pasadas — con el error de sintaxis de FTS5 devuelto
       al usuario en vez de tragado
 - [x] Traducción en vivo debajo de cada burbuja
+- [x] Acciones al pasar el mouse por una frase, sin ir a ningún panel
+- [x] La respuesta sale en el idioma del fragmento
 - [x] Ventana nativa en Tauri que lanza y mata el sidecar

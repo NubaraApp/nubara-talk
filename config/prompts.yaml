@@ -30,6 +30,7 @@ cli:
 
 prompts:
   - id: responder
+    corto: Responder
     nombre: Redactar respuesta
     descripcion: Redacta una respuesta a lo que se acaba de decir.
     plantilla: |
@@ -43,6 +44,7 @@ prompts:
       sin preámbulo ni comentarios sobre la tarea.
 
   - id: traducir_bien
+    corto: Traducir
     nombre: Traducir con cuidado
     descripcion: Traducción de calidad, más lenta que la del subtitulado en vivo.
     plantilla: |
@@ -52,6 +54,7 @@ prompts:
       {fragmento}
 
   - id: aclarar
+    corto: Explicar
     nombre: Explicar qué quisieron decir
     descripcion: Desambigua jerga, siglas o una frase confusa.
     plantilla: |
@@ -63,6 +66,7 @@ prompts:
       {fragmento}
 
   - id: resumir
+    corto: Resumir
     nombre: Resumir lo hablado
     descripcion: Resume el tramo seleccionado en puntos.
     plantilla: |

@@ -258,7 +258,9 @@ la UI lo pagaría de nuevo.
 
 **Costo aceptado:** hay dos procesos que pueden desincronizarse, y el sidecar hay que
 matarlo explícitamente al cerrar la ventana o queda un Python huérfano capturando audio.
-Está resuelto en el manejador de `RunEvent::Exit`.
+El cierre normal lo resuelve el manejador de `RunEvent::Exit`. Ese manejador **no** corre
+si la app se cae o la matan con una señal, así que el sidecar además vigila a su padre y
+se apaga solo cuando `getppid()` cambia. Verificado matando la app con `pkill`.
 
 ---
 
@@ -317,3 +319,33 @@ justamente ese — reuniones en inglés.
 **Costo aceptado:** si Whisper se equivoca de idioma, la respuesta sale en el idioma
 equivocado. Por eso el selector de la UI tiene español e inglés fijos además de
 automático.
+
+---
+
+## ADR-023 — Las acciones viven encima de cada frase, no en un panel
+
+**Decisión:** al pasar el mouse por una frase aparece una barra flotante con las
+plantillas de `config/prompts.yaml`. Actúa sobre esa frase sola, o sobre toda la
+selección si la frase ya estaba elegida.
+
+**Motivo:** en una reunión, cada segundo que el usuario pasa buscando un botón es un
+segundo que dejó de escuchar. Las acciones tienen que estar donde ya está mirando, que es
+el texto. El panel lateral sigue existiendo para trabajar sobre varias frases juntas.
+
+**Costo aceptado:** la barra tapa un poco de la burbuja de arriba. Se posiciona con
+`bottom: 100%` para no cubrir la etiqueta de quién habló, que es lo que se lee primero.
+
+---
+
+## ADR-024 — Las sesiones se guardan con reloj de pared
+
+**Decisión:** `sessions.started_at` y `ended_at` usan `time.time()`, no
+`time.monotonic()`. Los tiempos de cada segmento siguen siendo relativos al arranque
+de la sesión, medidos con `monotonic`.
+
+**Motivo:** `monotonic` cuenta desde que arrancó la máquina. Ordena bien, pero no se
+puede mostrar como fecha, y la lista de sesiones quedaba con identificadores hexadecimales
+en vez de "Hoy 15:42".
+
+**Costo aceptado:** las sesiones viejas quedaron con valores monotónicos. La UI las
+reconoce porque son números chicos y les muestra el id, como antes.

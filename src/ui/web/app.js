@@ -11,6 +11,7 @@ let socket = null;
 let running = false;
 let sessionId = null;
 let viewing = null; // sesión que se está mirando, si no es la que graba
+let templates = []; // plantillas de config/prompts.yaml, para los botones al vuelo
 const selected = new Map(); // "track-index" -> {track, turn_index}
 
 // ---------------------------------------------------------------- conexión
@@ -68,12 +69,51 @@ function bubbleFor(track, index) {
   node = document.createElement("div");
   node.id = id;
   node.className = `bubble ${track}`;
-  node.innerHTML = `<div class="who"><b>${SPEAKER[track] || track}</b><span class="t"></span></div>
+  node.innerHTML = `<div class="tools"></div>
+                    <div class="who"><b>${SPEAKER[track] || track}</b><span class="t"></span></div>
                     <div class="text"></div><div class="trad"></div>`;
   node.onclick = (event) => toggleSelect(node, track, index, event);
+  buildTools(node, track, index);
   stream.appendChild(node);
   el("empty").classList.add("hidden");
   return node;
+}
+
+// Las acciones viven encima de cada frase y aparecen al pasar el mouse. Es donde está
+// mirando el usuario: obligarlo a ir hasta un panel lateral en medio de una reunión es
+// pedirle que deje de escuchar.
+function buildTools(node, track, index) {
+  const tools = node.querySelector(".tools");
+  tools.innerHTML = "";
+
+  const pick = document.createElement("button");
+  pick.className = "pick";
+  pick.textContent = "✓";
+  pick.title = "Sumar esta frase a la selección";
+  pick.onclick = (event) => { event.stopPropagation(); toggleSelect(node, track, index, event); };
+  tools.appendChild(pick);
+
+  if (templates.length) {
+    const sep = document.createElement("div");
+    sep.className = "sep";
+    tools.appendChild(sep);
+  }
+
+  for (const template of templates) {
+    const button = document.createElement("button");
+    button.textContent = template.corto || template.nombre;
+    button.title = template.descripcion || "";
+    button.onclick = (event) => {
+      event.stopPropagation();
+      // Si la frase ya es parte de una selección, la acción va sobre toda la selección.
+      // Si no, va sobre esta sola, sin tocar lo que hubiera elegido antes.
+      const keys = selected.has(key(track, index))
+        ? [...selected.values()]
+        : [{ track, turn_index: index }];
+      askKeys(template.id, keys);
+    };
+    tools.appendChild(button);
+  }
 }
 
 function onSegment(msg) {
@@ -185,6 +225,7 @@ document.addEventListener("keydown", (event) => {
 // ---------------------------------------------------------------- prompts
 
 function onPrompts(msg) {
+  templates = msg.templates;
   const box = el("prompts");
   box.innerHTML = "";
   for (const t of msg.templates) {
@@ -193,6 +234,10 @@ function onPrompts(msg) {
     button.title = t.descripcion || "";
     button.onclick = () => ask(t.id);
     box.appendChild(button);
+  }
+  // Las plantillas llegan al conectar, que puede ser después de pintar burbujas.
+  for (const node of stream.children) {
+    buildTools(node, node.classList.contains("mic") ? "mic" : "sys", Number(node.id.split("-")[1]));
   }
 
   const cli = el("cli");
@@ -210,7 +255,12 @@ function onPrompts(msg) {
 }
 
 function ask(template) {
-  if (!selected.size) return toast("Elegí al menos un fragmento.");
+  if (!selected.size) return toast("Elegí al menos una frase.");
+  askKeys(template, [...selected.values()]);
+}
+
+function askKeys(template, keys) {
+  if (!keys.length) return toast("Elegí al menos una frase.");
   const answer = el("answer");
   answer.classList.add("pending");
   answer.textContent = "pensando…";
@@ -220,7 +270,7 @@ function ask(template) {
     cli: el("cli").value || null,
     idioma: el("idioma").value,
     session_id: viewing || sessionId,
-    keys: [...selected.values()],
+    keys,
   });
 }
 
@@ -271,14 +321,27 @@ function onResults(rows) {
 
 // ---------------------------------------------------------------- sesiones
 
+function sessionLabel(row) {
+  // Las sesiones viejas guardaban `time.monotonic()`, que son segundos desde que
+  // arrancó la máquina y no una fecha. Se reconocen porque son números chicos.
+  if (!row.started_at || row.started_at < 1e9) return row.id;
+  const date = new Date(row.started_at * 1000);
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+  const time = date.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+  return sameDay ? `Hoy ${time}` : `${date.toLocaleDateString("es", { day: "numeric", month: "short" })} ${time}`;
+}
+
 function onSessions(rows) {
   const box = el("sessions");
   box.innerHTML = "";
   for (const row of rows) {
     const item = document.createElement("div");
     item.className = "session";
-    const when = row.ended_at ? "cerrada" : "abierta";
-    item.innerHTML = `<div>${row.id}</div><small>${row.segmentos} segmentos · ${when}</small>`;
+    const when = row.ended_at ? "" : " · abierta";
+    item.innerHTML = `<div>${sessionLabel(row)}</div>
+      <small>${row.segmentos} segmento${row.segmentos === 1 ? "" : "s"}${when}</small>`;
+    item.title = row.id;
     item.onclick = () => send({ type: "transcript", session_id: row.id });
     box.appendChild(item);
   }
@@ -326,5 +389,10 @@ function toast(message) {
   document.body.appendChild(node);
   setTimeout(() => node.remove(), 6000);
 }
+
+document.addEventListener("click", (event) => {
+  const menu = el("settings");
+  if (menu.open && !menu.contains(event.target)) menu.open = false;
+});
 
 connect();

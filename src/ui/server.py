@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import sqlite3
 import threading
 import time
@@ -210,7 +211,9 @@ class Hub:
 
             session_id = uuid.uuid4().hex[:12]
             session_start = time.monotonic()
-            create_session(self._conn, session_id, session_start)
+            # La sesión se guarda con reloj de pared para poder mostrarla como fecha;
+            # los tiempos de cada segmento siguen siendo relativos a `session_start`.
+            create_session(self._conn, session_id, time.time())
             self._writer = SessionWriter(self._conn, session_id)
             self._session_id = session_id
 
@@ -261,7 +264,7 @@ class Hub:
         if trad_conn is not None:
             trad_conn.close()
         if session_id is not None:
-            end_session(self._conn, session_id, time.monotonic())
+            end_session(self._conn, session_id, time.time())
 
         self.emit("state", running=False, session_id=session_id)
 
@@ -291,7 +294,7 @@ class Hub:
     def prompt_catalog(self) -> dict[str, Any]:
         return {
             "templates": [
-                {"id": t.id, "nombre": t.nombre, "descripcion": t.descripcion}
+                {"id": t.id, "nombre": t.nombre, "corto": t.corto, "descripcion": t.descripcion}
                 for t in self._prompts.prompts.values()
             ],
             "clis": [
@@ -400,7 +403,29 @@ async def dispatch(hub: Hub, socket: ServerConnection, message: dict[str, Any]) 
         raise RuntimeError(f"Mensaje desconocido: {kind!r}")
 
 
+def watch_parent(interval: float = 2.0) -> None:
+    """Se apaga si muere quien lo lanzó.
+
+    La ventana mata al sidecar al cerrarse, pero eso sólo cubre el cierre normal: si la
+    app se cae o la matan con una señal, el sidecar queda vivo capturando audio y
+    ocupando el puerto. Cuando el padre muere, `getppid()` pasa a 1.
+    """
+    parent = os.getppid()
+    if parent <= 1:
+        return  # ya arrancó suelto, no hay a quién vigilar
+
+    def loop() -> None:
+        while True:
+            time.sleep(interval)
+            if os.getppid() != parent:
+                log.info("el proceso padre murió; cerrando el sidecar")
+                os._exit(0)
+
+    threading.Thread(target=loop, name="watch-parent", daemon=True).start()
+
+
 async def main_async(db: Path, config: Path | None, port: int) -> None:
+    watch_parent()
     hub = Hub(db, config)
     hub.bind(asyncio.get_running_loop())
     pump = asyncio.create_task(hub.pump())

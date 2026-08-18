@@ -7,64 +7,97 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>granola-local</h1>
-    <span id="dot" class="dot" title="desconectado"></span>
-    <span id="status">conectando…</span>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <span class="name">granola<span class="dim">-local</span></span>
+    </div>
+
+    <div class="status">
+      <span id="dot" class="dot"></span>
+      <span id="status">conectando…</span>
+    </div>
+
     <div class="spacer"></div>
-    <label>Ellos <select id="lang-sys"><option value="en">inglés</option><option value="es">español</option><option value="">auto</option></select></label>
-    <label>Yo <select id="lang-mic"><option value="en">inglés</option><option value="es" selected>español</option><option value="">auto</option></select></label>
-    <label><input type="checkbox" id="traducir" checked /> traducir a español</label>
-    <label title="Core Audio Process Tap: no necesita BlackHole. Requiere permiso de grabación de audio."><input type="checkbox" id="nativo" /> captura nativa</label>
-    <button id="reply-last" title="Elige el último turno de Ellos y pide respuesta">Responder al último</button>
+
+    <details class="menu" id="settings">
+      <summary title="Idiomas y fuente de audio">Ajustes</summary>
+      <div class="menu-body">
+        <label>Ellos hablan
+          <select id="lang-sys">
+            <option value="en" selected>inglés</option>
+            <option value="es">español</option>
+            <option value="">detectar</option>
+          </select>
+        </label>
+        <label>Yo hablo
+          <select id="lang-mic">
+            <option value="en">inglés</option>
+            <option value="es" selected>español</option>
+            <option value="">detectar</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="traducir" checked /> Traducir en vivo</label>
+        <label class="check" title="Core Audio Process Tap. No necesita BlackHole, pero pide permiso de grabación de audio del sistema.">
+          <input type="checkbox" id="nativo" /> Captura nativa
+        </label>
+      </div>
+    </details>
+
+    <button id="reply-last" class="ghost" title="Elige lo último que dijeron y pide una respuesta">
+      Responder al último
+    </button>
     <button id="toggle" class="primary">Empezar</button>
   </header>
 
   <main>
     <section id="stream-pane">
       <div id="stream" class="stream"></div>
-      <div id="empty" class="empty">Nada todavía. Dale a <b>Empezar</b>, o cargá una sesión anterior.</div>
+
+      <div id="empty" class="empty">
+        <div class="empty-art" aria-hidden="true"></div>
+        <p>Nada todavía.</p>
+        <p class="dim">Dale a <b>Empezar</b>, o abrí una sesión anterior desde el panel.</p>
+      </div>
 
       <div id="actionbar" class="actionbar hidden">
         <div class="sel">
-          <b id="selcount">0 elegidos</b>
-          <span id="selpreview" class="muted"></span>
+          <b id="selcount">0 frases</b>
+          <span id="selpreview" class="dim"></span>
         </div>
         <div id="prompts" class="prompts"></div>
-        <label>responder en
-          <select id="idioma">
-            <option value="auto" selected>el idioma del fragmento</option>
+        <div class="actionbar-opts">
+          <select id="idioma" title="Idioma de la respuesta">
+            <option value="auto" selected>idioma del fragmento</option>
             <option value="español">español</option>
             <option value="inglés">inglés</option>
           </select>
-        </label>
-        <select id="cli"></select>
-        <button id="clear">Limpiar</button>
+          <select id="cli" title="Qué CLI responde"></select>
+          <button id="clear" class="ghost">Limpiar</button>
+        </div>
       </div>
     </section>
 
     <aside>
-      <div class="card">
+      <section class="card">
         <h2>Respuesta</h2>
         <div id="answer" class="answer">
-          <span class="muted">Elegí una o más frases y pedí una respuesta. Con
-          <kbd>⌘</kbd><kbd>↵</kbd> se dispara la primera plantilla.</span>
+          <p class="dim">Pasá el mouse por una frase y elegí una acción. Con
+            <kbd>⌘</kbd><kbd>↵</kbd> se dispara la primera sobre lo seleccionado.</p>
         </div>
-      </div>
+      </section>
 
-      <div class="card">
+      <section class="card">
         <h2>Buscar</h2>
-        <div class="row">
-          <input id="q" type="search" placeholder="palabra o frase…" />
-          <label class="muted"><input type="checkbox" id="only-session" /> sólo esta sesión</label>
-        </div>
-        <div id="results"></div>
-      </div>
+        <input id="q" type="search" placeholder="palabra o frase…" />
+        <label class="check dim"><input type="checkbox" id="only-session" /> sólo esta sesión</label>
+        <div id="results" class="list"></div>
+      </section>
 
-      <div class="card">
+      <section class="card">
         <h2>Sesiones</h2>
-        <div id="sessions"></div>
-      </div>
+        <div id="sessions" class="list"></div>
+      </section>
     </aside>
   </main>
 

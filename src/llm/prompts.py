@@ -25,6 +25,9 @@ class PromptTemplate:
     nombre: str
     descripcion: str
     plantilla: str
+    # Etiqueta corta para los botones que aparecen encima de cada frase. Si no está,
+    # se usa `nombre`, que suele ser demasiado largo para un botón chico.
+    corto: str = ""
 
     def render(self, fragmento: str, contexto: str = "", idioma: str = "español") -> str:
         return self.plantilla.format(fragmento=fragmento, contexto=contexto, idioma=idioma)
@@ -73,6 +76,7 @@ def load(path: Path | str = DEFAULT_CONFIG) -> Config:
             nombre=entry["nombre"],
             descripcion=entry.get("descripcion", ""),
             plantilla=entry["plantilla"],
+            corto=entry.get("corto") or entry["nombre"],
         )
 
     if not prompts:

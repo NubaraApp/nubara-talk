@@ -245,7 +245,7 @@ def main() -> int:
         src.open()
 
     session_start = time.monotonic()
-    create_session(conn, session_id, session_start)
+    create_session(conn, session_id, time.time())
 
     engine.start()
     pipelines = {
@@ -293,7 +293,7 @@ def main() -> int:
             f"mismo idioma {trad_worker.skipped_same_lang}"
         )
         trad_conn.close()
-    end_session(conn, session_id, time.monotonic())
+    end_session(conn, session_id, time.time())
 
     rows = transcript(conn, session_id)
     ok = report(results, pipelines, engine, rows, warmup)
