@@ -3,6 +3,7 @@
 
 const PORT = new URLSearchParams(location.search).get("port") || "8765";
 const SPEAKER = { mic: "Yo", sys: "Ellos" };
+const MY_LANG = { es: "español", en: "inglés" };
 
 const el = (id) => document.getElementById(id);
 const stream = el("stream");
@@ -269,6 +270,8 @@ function askKeys(template, keys) {
     template,
     cli: el("cli").value || null,
     idioma: el("idioma").value,
+    // En qué idioma leo yo. Es lo que usan traducir, explicar y resumir.
+    propio: MY_LANG[el("lang-mic").value] || "español",
     session_id: viewing || sessionId,
     keys,
   });

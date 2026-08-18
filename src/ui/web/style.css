@@ -201,7 +201,20 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 330px; min-
 }
 .bubble.sys .tools { left: 10px; }
 .bubble.mic .tools { right: 10px; }
-.bubble:hover .tools, .bubble:focus-within .tools { opacity: 1; transform: none; pointer-events: auto; }
+
+/* Puente invisible sobre la burbuja. Sin esto, al subir el mouse hacia la barra se sale
+   de la caja de la burbuja por un hueco donde no hay nada, `:hover` se apaga y la barra
+   desaparece antes de poder hacerle clic. El puente es hijo de la burbuja, así que
+   estando encima de él la burbuja sigue en :hover. */
+.bubble::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: -14px; height: 14px;
+}
+
+.bubble:hover .tools,
+.bubble:focus-within .tools,
+.tools:hover { opacity: 1; transform: none; pointer-events: auto; }
 
 .tools button {
   border: none; background: transparent; padding: 4px 9px;

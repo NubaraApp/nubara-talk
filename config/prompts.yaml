@@ -28,9 +28,13 @@ cli:
 #
 # Cualquier otro marcador entre llaves hace fallar la carga: es un typo, no una feature.
 
+# `idioma` dice en qué idioma tiene que contestar el modelo:
+#   fragmento — el mismo idioma de lo que se dijo. Para responderle a quien habló.
+#   propio    — el idioma en el que yo leo. Para traducir, explicar o resumir.
 prompts:
   - id: responder
     corto: Responder
+    idioma: fragmento
     nombre: Redactar respuesta
     descripcion: Redacta una respuesta a lo que se acaba de decir.
     plantilla: |
@@ -44,6 +48,7 @@ prompts:
       sin preámbulo ni comentarios sobre la tarea.
 
   - id: traducir_bien
+    idioma: propio
     corto: Traducir
     nombre: Traducir con cuidado
     descripcion: Traducción de calidad, más lenta que la del subtitulado en vivo.
@@ -54,6 +59,7 @@ prompts:
       {fragmento}
 
   - id: aclarar
+    idioma: propio
     corto: Explicar
     nombre: Explicar qué quisieron decir
     descripcion: Desambigua jerga, siglas o una frase confusa.
@@ -66,6 +72,7 @@ prompts:
       {fragmento}
 
   - id: resumir
+    idioma: propio
     corto: Resumir
     nombre: Resumir lo hablado
     descripcion: Resume el tramo seleccionado en puntos.

@@ -62,15 +62,24 @@ LANG_NAMES = {
 }
 
 
-def answer_language(rows: list[sqlite3.Row], asked: str | None) -> str:
+def _row(row: sqlite3.Row) -> dict[str, Any]:
+    return {k: row[k] for k in row.keys()}
+
+
+def answer_language(
+    rows: list[sqlite3.Row], asked: str | None, policy: str, propio: str
+) -> str:
     """En qué idioma tiene que contestar el LLM.
 
-    Por defecto, en el mismo idioma del fragmento elegido: si la pregunta vino en
-    inglés, contestar en español no sirve para nada — la respuesta es para leérsela a
-    quien preguntó. Se puede forzar desde la UI.
+    Depende de la acción, no sólo del fragmento. Responderle a alguien va en el idioma
+    en que habló; traducir, explicar o resumir van en el idioma en que yo leo —
+    traducir al mismo idioma del original no traduce nada. Cada plantilla declara cuál
+    de los dos quiere en `config/prompts.yaml`.
     """
     if asked and asked != "auto":
         return asked
+    if policy != "fragmento":
+        return propio or "español"
 
     votes: dict[str, int] = {}
     for row in rows:
@@ -78,13 +87,9 @@ def answer_language(rows: list[sqlite3.Row], asked: str | None) -> str:
         if code:
             votes[code] = votes.get(code, 0) + 1
     if not votes:
-        return "español"
+        return propio or "español"
     winner = max(votes, key=lambda code: votes[code])
     return LANG_NAMES.get(winner, winner)
-
-
-def _row(row: sqlite3.Row) -> dict[str, Any]:
-    return {k: row[k] for k in row.keys()}
 
 
 class Hub:
@@ -294,7 +299,13 @@ class Hub:
     def prompt_catalog(self) -> dict[str, Any]:
         return {
             "templates": [
-                {"id": t.id, "nombre": t.nombre, "corto": t.corto, "descripcion": t.descripcion}
+                {
+                    "id": t.id,
+                    "nombre": t.nombre,
+                    "corto": t.corto,
+                    "descripcion": t.descripcion,
+                    "idioma": t.idioma,
+                }
                 for t in self._prompts.prompts.values()
             ],
             "clis": [
@@ -344,7 +355,9 @@ class Hub:
         )
 
         spec = bridge.pick(self._prompts.candidates, payload.get("cli") or None)
-        idioma = answer_language(rows, payload.get("idioma"))
+        idioma = answer_language(
+            rows, payload.get("idioma"), template.idioma, payload.get("propio") or "español"
+        )
         prompt = template.render(fragmento=fragmento, contexto=contexto, idioma=idioma)
         cli = bridge.LlmCli(spec, timeout_s=self._prompts.timeout_s)
         response = cli.run(prompt)

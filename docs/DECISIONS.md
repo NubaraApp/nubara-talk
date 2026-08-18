@@ -316,6 +316,17 @@ en inglés, una respuesta en español no sirve para nada: habría que traducirla
 cabeza, en voz alta y con la reunión esperando. El caso de uso del proyecto es
 justamente ese — reuniones en inglés.
 
+**Corrección posterior.** La primera versión aplicaba esta regla a todas las plantillas
+y rompía la de traducir: pedía traducir un texto en inglés *al inglés*, y devolvía el
+original sin tocar. El idioma depende de la acción, no sólo del fragmento. Ahora cada
+plantilla lo declara en `config/prompts.yaml`:
+
+- `idioma: fragmento` — contestar en el idioma en que hablaron. Es el de `responder`.
+- `idioma: propio` — en el idioma en que yo leo. Es el de traducir, explicar y resumir.
+
+El valor se valida al cargar el archivo: un `idioma` desconocido falla ahí y no en medio
+de una reunión.
+
 **Costo aceptado:** si Whisper se equivoca de idioma, la respuesta sale en el idioma
 equivocado. Por eso el selector de la UI tiene español e inglés fijos además de
 automático.
@@ -349,3 +360,19 @@ en vez de "Hoy 15:42".
 
 **Costo aceptado:** las sesiones viejas quedaron con valores monotónicos. La UI las
 reconoce porque son números chicos y les muestra el id, como antes.
+
+---
+
+## ADR-025 — La barra flotante necesita un puente invisible
+
+**Decisión:** cada burbuja tiene un `::before` transparente de 14 px que ocupa el hueco
+de arriba, entre ella y la burbuja anterior.
+
+**Motivo:** sin eso, al mover el mouse hacia la barra de acciones se salía de la caja de
+la burbuja por ese hueco, `:hover` se apagaba y la barra desaparecía antes de que se
+pudiera hacer clic. Es el clásico problema de los menús que se abren hacia arriba. El
+puente es hijo de la burbuja, así que estando encima de él la burbuja sigue en `:hover`.
+
+**Costo aceptado:** esa franja de 14 px pertenece a la burbuja de abajo, así que la de
+arriba pierde el `:hover` un poco antes de lo que el ojo espera. Es el hueco entre las
+dos, donde no hay nada que tocar.

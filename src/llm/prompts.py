@@ -28,6 +28,9 @@ class PromptTemplate:
     # Etiqueta corta para los botones que aparecen encima de cada frase. Si no está,
     # se usa `nombre`, que suele ser demasiado largo para un botón chico.
     corto: str = ""
+    # "fragmento" (contestar en el idioma de lo que se dijo) o "propio" (en el idioma
+    # en el que leo). Traducir al mismo idioma del original no traduce nada.
+    idioma: str = "propio"
 
     def render(self, fragmento: str, contexto: str = "", idioma: str = "español") -> str:
         return self.plantilla.format(fragmento=fragmento, contexto=contexto, idioma=idioma)
@@ -77,7 +80,15 @@ def load(path: Path | str = DEFAULT_CONFIG) -> Config:
             descripcion=entry.get("descripcion", ""),
             plantilla=entry["plantilla"],
             corto=entry.get("corto") or entry["nombre"],
+            idioma=entry.get("idioma", "propio"),
         )
+
+    for template in prompts.values():
+        if template.idioma not in ("fragmento", "propio"):
+            raise RuntimeError(
+                f"{path}: el prompt {template.id!r} tiene idioma={template.idioma!r}. "
+                f"Sólo valen 'fragmento' y 'propio'."
+            )
 
     if not prompts:
         raise RuntimeError(f"{path}: no hay ningún prompt definido.")
