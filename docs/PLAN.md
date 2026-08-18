@@ -29,12 +29,17 @@ y cola de trabajos: las dos pistas comparten el modelo, no cargan uno cada una.
 Escritura a SQLite: segmentos `provisional` al vuelo, promovidos a `confirmed` cuando
 el turno cierra.
 
-**Criterios de salida:**
+**Criterios de salida — cumplidos el 2026-08-18:**
 
-- [ ] Latencia mediana desde fin de turno hasta texto en pantalla < 2 s
-- [ ] Las dos pistas transcriben en paralelo sin bloquearse mutuamente
-- [ ] Los segmentos de ambas pistas se intercalan correctamente por `t_start`
-- [ ] Números medidos en `BENCHMARKS.md`
+- [x] Latencia mediana desde fin de turno hasta texto en pantalla < 2 s — **0.50 s**,
+      p95 0.59 s
+- [x] Las dos pistas transcriben en paralelo sin bloquearse mutuamente — 8 turnos cada
+      una, latencias medianas de 0.43 s y 0.52 s
+- [x] Los segmentos de ambas pistas se intercalan correctamente por `t_start`
+- [x] Números medidos en `BENCHMARKS.md`
+
+Pendiente de validar con dos hablantes reales: en la prueba, el micrófono captó los
+parlantes, así que ambas pistas transcribieron el mismo discurso.
 
 ## F2 — Puente LLM por CLI
 

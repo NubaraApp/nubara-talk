@@ -17,8 +17,10 @@ Latencias medidas en este equipo: Apple M5 Pro, macOS 26.6, Python 3.12, BlackHo
 | RMS pista `sys` (voz reproducida) | 0.1492 | 2026-08-18 |
 | Correlación entre pistas | 0.0011 | 2026-08-18 |
 
-La correlación cercana a cero confirma que son dos fuentes independientes: la pista `sys`
-no es el micrófono captando los parlantes, es la señal digital antes de salir al hardware.
+La correlación cercana a cero dice que las dos pistas **no son la misma forma de onda**:
+`sys` es la señal digital antes del hardware, sin el retardo acústico ni la reverberación
+de la sala. No dice que el micrófono no oiga los parlantes — sí los oye. En F1 el mic
+transcribió el mismo discurso que salía por los parlantes, con más errores.
 
 ## Notas
 
@@ -35,3 +37,43 @@ bloque, o cuando difiere entre las dos pistas.
 reproducida por el Multi-Output. La pista `mic` capturó ruido de sala, no habla directa.
 Ambas superan el umbral de RMS con margen, pero el número de `mic` con alguien hablándole
 de cerca va a ser bastante más alto.
+
+
+## F1 — STT en vivo (validación real, 38 s)
+
+Modelo: `mlx-community/whisper-large-v3-turbo` sobre MLX/Metal. VAD: Silero, una
+instancia por pista.
+
+| Qué se mide | Valor | Fecha |
+|-------------|-------|-------|
+| Latencia mediana, fin de turno a texto | **0.50 s** | 2026-08-18 |
+| Latencia p95 | 0.59 s | 2026-08-18 |
+| Latencia mediana pista `sys` | 0.43 s | 2026-08-18 |
+| Latencia mediana pista `mic` | 0.52 s | 2026-08-18 |
+| Inferencia mediana por turno | 0.181 s | 2026-08-18 |
+| RTF (53.7 s de habla) | 0.054 | 2026-08-18 |
+| Carga del modelo (ya descargado) | 1.5 s | 2026-08-18 |
+| Descarga inicial del modelo | ~30 s | 2026-08-18 |
+| Costo del VAD por frame de 32 ms | 0.069 ms | 2026-08-18 |
+| Turnos transcritos / detectados | 16 / 16 | 2026-08-18 |
+| Parciales descartados por obsoletos | 0 | 2026-08-18 |
+
+Latencia por turno según duración del audio, medida aparte:
+
+| Audio del turno | Inferencia | RTF |
+|---|---|---|
+| 3 s | 0.18 s | 0.060 |
+| 5 s | 0.20 s | 0.039 |
+| 8 s | 0.22 s | 0.027 |
+| 20 s | 0.32 s | 0.016 |
+
+El costo es casi todo fijo: turnos más largos casi no cuestan más. El presupuesto de 2 s
+sobra por un factor de cuatro.
+
+### Condición de la validación
+
+La pista `sys` recibió voz sintetizada con `say`. **El micrófono captó los parlantes**,
+así que las dos pistas transcribieron el mismo discurso: sirve para probar que ambas
+corren en paralelo sin bloquearse, pero no es un escenario de dos hablantes reales. La
+transcripción del mic salió peor —"Revenue came in a head of Planteys Quarter"— que es
+lo esperable de audio acústico con reverberación.

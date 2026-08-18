@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS segments (
   id         INTEGER PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   track      TEXT NOT NULL CHECK (track IN ('mic','sys')),
+  turn_index INTEGER NOT NULL,    -- contador de turnos por pista dentro de la sesión
   t_start    REAL NOT NULL,       -- segundos desde el inicio de la sesión
   t_end      REAL NOT NULL,
   lang       TEXT,
@@ -37,6 +38,10 @@ CREATE TABLE IF NOT EXISTS segments (
 
 -- La UI recorre una sesión en orden cronológico intercalando las dos pistas.
 CREATE INDEX IF NOT EXISTS idx_segments_session_time ON segments(session_id, t_start);
+
+-- Un turno tiene una sola fila: los parciales la reescriben hasta que el turno cierra.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_segments_turn
+  ON segments(session_id, track, turn_index);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS segments_fts USING fts5(
   text,
@@ -86,3 +91,90 @@ def connect(path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
 
     log.debug("base abierta en %s", path)
     return conn
+
+
+def create_session(conn: sqlite3.Connection, session_id: str, started_at: float) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO sessions(id, started_at) VALUES (?, ?)",
+        (session_id, started_at),
+    )
+    conn.commit()
+
+
+def end_session(conn: sqlite3.Connection, session_id: str, ended_at: float) -> None:
+    conn.execute("UPDATE sessions SET ended_at = ? WHERE id = ?", (ended_at, session_id))
+    conn.commit()
+
+
+def upsert_segment(
+    conn: sqlite3.Connection,
+    session_id: str,
+    track: str,
+    turn_index: int,
+    t_start: float,
+    t_end: float,
+    text: str,
+    lang: str | None,
+    status: str,
+) -> None:
+    """Escribe el turno, pisando el parcial anterior si ya había uno.
+
+    Un turno confirmado no vuelve a provisional: los parciales de un turno pueden llegar
+    después del final si la cola se desordenó, y no tienen que degradar lo ya confirmado.
+    """
+    conn.execute(
+        """
+        INSERT INTO segments(session_id, track, turn_index, t_start, t_end, text, lang, status)
+        VALUES (:sid, :track, :idx, :t0, :t1, :text, :lang, :status)
+        ON CONFLICT(session_id, track, turn_index) DO UPDATE SET
+            t_end  = excluded.t_end,
+            text   = excluded.text,
+            lang   = excluded.lang,
+            status = excluded.status
+        WHERE segments.status != 'confirmed'
+        """,
+        {
+            "sid": session_id,
+            "track": track,
+            "idx": turn_index,
+            "t0": t_start,
+            "t1": t_end,
+            "text": text,
+            "lang": lang,
+            "status": status,
+        },
+    )
+    conn.commit()
+
+
+def transcript(conn: sqlite3.Connection, session_id: str) -> list[sqlite3.Row]:
+    """La sesión completa en orden cronológico, con las dos pistas intercaladas."""
+    return list(
+        conn.execute(
+            "SELECT * FROM segments WHERE session_id = ? ORDER BY t_start, track",
+            (session_id,),
+        )
+    )
+
+
+def search(
+    conn: sqlite3.Connection, query: str, session_id: str | None = None, limit: int = 50
+) -> list[sqlite3.Row]:
+    """Búsqueda de texto completo sobre transcripción y traducción.
+
+    El operador MATCH de FTS5 exige el nombre de la tabla virtual a la izquierda, no un
+    alias: `f MATCH ?` falla con "no such column: f". Por eso la consulta vive acá y no
+    se escribe a mano en cada llamador.
+    """
+    sql = """
+        SELECT s.*, bm25(segments_fts) AS rank
+        FROM segments_fts
+        JOIN segments s ON s.id = segments_fts.rowid
+        WHERE segments_fts MATCH :q
+    """
+    params: dict[str, object] = {"q": query, "limit": limit}
+    if session_id is not None:
+        sql += " AND s.session_id = :sid"
+        params["sid"] = session_id
+    sql += " ORDER BY rank LIMIT :limit"
+    return list(conn.execute(sql, params))
