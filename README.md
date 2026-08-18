@@ -67,6 +67,22 @@ Idioma por pista con `--lang-mic` y `--lang-sys`, o `auto` para detectarlo:
 python -m src.spikes.f1_transcribe --lang-mic es --lang-sys en
 ```
 
+## Abrir la app (F5)
+
+```bash
+npm install
+npx tauri dev
+```
+
+La ventana lanza el sidecar de Python sola. Si preferís verla en el navegador, sin Tauri:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m src.ui.server
+open src/ui/web/index.html
+```
+
+El sidecar escucha sólo en `127.0.0.1:8765`. No es alcanzable desde otra máquina.
+
 ## Traducción local (F3)
 
 La primera vez hay que convertir el modelo (baja ~2.5 GB y deja 621 MB en disco):
@@ -112,8 +128,8 @@ spike avisa cuál eligió antes de enviar nada.
 
 ## Estado
 
-**F0, F1, F2 y F3 cerrados.** F4 (captura nativa) está escrito y bloqueado por el
-permiso de grabación de audio del sistema: ver `docs/SETUP_AUDIO.md`. Falta la UI (F5).
+**F0, F1, F2, F3 y F5 cerrados.** F4 (captura nativa) está escrito y bloqueado por el
+permiso de grabación de audio del sistema: ver `docs/SETUP_AUDIO.md`.
 
 ## Licencia
 

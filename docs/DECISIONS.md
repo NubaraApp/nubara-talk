@@ -242,3 +242,46 @@ la captura llegó a correr y ya paró.
 demoraba más que el timeout de la cola, `read()` veía la cola vacía y `_running` en False
 y terminaba sin haber leído nada. No era teórico: compilar el helper de F4 dejó la
 máquina lo bastante ocupada como para que las dos pistas devolvieran cero muestras.
+
+---
+
+## ADR-018 — La UI es una ventana tonta y un sidecar de Python
+
+**Decisión:** Tauri muestra `src/ui/web` y lanza `python -m src.ui.server`. Se hablan por
+un WebSocket en 127.0.0.1. En Rust no hay nada de lógica: sólo abrir la ventana, arrancar
+el sidecar y matarlo al cerrar.
+
+**Motivo:** todo lo que hace la app ya está en Python — captura, VAD, Whisper, NLLB,
+SQLite, el puente al LLM. Reescribir cualquier parte en Rust sería duplicarla. Y el modelo
+de STT tarda segundos en cargar: si viviera en el proceso de la ventana, cada arranque de
+la UI lo pagaría de nuevo.
+
+**Costo aceptado:** hay dos procesos que pueden desincronizarse, y el sidecar hay que
+matarlo explícitamente al cerrar la ventana o queda un Python huérfano capturando audio.
+Está resuelto en el manejador de `RunEvent::Exit`.
+
+---
+
+## ADR-019 — El frontend es HTML plano, sin bundler ni framework
+
+**Decisión:** `index.html`, `app.js` y `style.css`. Sin npm en el frontend, sin build.
+
+**Motivo:** la UI son tres cosas: una lista que crece, una selección y un par de
+formularios. Un framework agregaría un paso de build, un `node_modules` y una cadena de
+dependencias más larga que todo el resto del proyecto junto. `npm` aparece una sola vez,
+para bajar el binario del CLI de Tauri.
+
+**Costo aceptado:** el estado se maneja a mano con un `Map` y `document.getElementById`.
+Si la UI crece a varias pantallas, esta decisión hay que revisarla.
+
+---
+
+## ADR-020 — El WebSocket escucha sólo en 127.0.0.1
+
+**Decisión:** `HOST = "127.0.0.1"`, nunca `0.0.0.0`.
+
+**Motivo:** por ese socket pasa la transcripción completa de la reunión. En `0.0.0.0`
+cualquiera en la misma red WiFi podría leerla. No hay autenticación porque no hace falta:
+el socket no es alcanzable desde afuera de la máquina.
+
+**Costo aceptado:** no se puede abrir la UI desde otro dispositivo. Es intencional.

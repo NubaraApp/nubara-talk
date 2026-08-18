@@ -1,0 +1,13 @@
+{
+  "name": "granola-local",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Ventana nativa de granola-local. El frontend es HTML plano en src/ui/web: no hay bundler ni framework.",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

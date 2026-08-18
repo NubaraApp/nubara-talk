@@ -156,3 +156,29 @@ dos* pistas. No fue el tap: compilar el helper con `swiftc` dejó la máquina oc
 suficiente como para que `start()` tardara más que el timeout de la cola, y `read()`
 terminaba antes de leer nada. Es una carrera que ya existía en `BlackHoleSource` y que
 ninguna corrida anterior había destapado. Arreglada en las dos fuentes (ADR-017).
+
+## F5 — UI
+
+Corrida de punta a punta contra el sidecar, sin ventana: un cliente WebSocket arranca la
+captura, reproduce tres frases por `say`, para, busca y pide una respuesta al LLM.
+
+| Paso | Resultado |
+|---|---|
+| Segmentos recibidos en vivo | 12 (6 parciales + 6 finales, las dos pistas) |
+| Traducciones recibidas | 12 |
+| Búsqueda FTS5 (`trimestre`) | 1 fila |
+| Transcripción de la sesión | 6 filas |
+| Respuesta del LLM | `ollama`, local, 14.9 s |
+| Consulta FTS5 inválida (`"`) | error devuelto al cliente, sidecar sigue vivo |
+
+La respuesta a los dos últimos turnos de la pista `sys`:
+
+> Excelente noticia sobre los ingresos. Por supuesto, le haré llegar el Cronograma de
+> Migración hoy mismo.
+
+Los 14,9 s contra los 8,1 s de F2 son del modelo, no del transporte: el prompt de la UI
+lleva más contexto.
+
+**Lo que no está medido.** No hay ninguna medición de la UI con una reunión de verdad, ni
+del comportamiento de la lista después de cientos de turnos: el DOM crece sin recortar.
+Con reuniones largas eso hay que mirarlo.

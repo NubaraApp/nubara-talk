@@ -98,6 +98,13 @@ Tauri con sidecar Python. Se comunican por WebSocket local.
 
 **Criterios de salida:**
 
-- [ ] Transcripción en vivo de ambas pistas, visualmente distinguibles
-- [ ] Selección de fragmento y disparo de prompt desde la UI
-- [ ] Búsqueda FTS5 sobre sesiones pasadas
+- [x] Transcripción en vivo de ambas pistas, visualmente distinguibles — `Ellos` a la
+      izquierda en azul, `Yo` a la derecha en verde; los parciales van en itálica y
+      apagados hasta que el turno cierra
+- [x] Selección de fragmento y disparo de prompt desde la UI — clic para elegir, las
+      plantillas de `config/prompts.yaml` salen como botones, y la respuesta dice si la
+      CLI fue local o remota
+- [x] Búsqueda FTS5 sobre sesiones pasadas — con el error de sintaxis de FTS5 devuelto
+      al usuario en vez de tragado
+- [x] Traducción en vivo debajo de cada burbuja
+- [x] Ventana nativa en Tauri que lanza y mata el sidecar
