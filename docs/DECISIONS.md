@@ -212,3 +212,33 @@ de ADR-009: el texto de un parcial viejo ya está obsoleto antes de salir de la 
 
 **Costo aceptado:** un segundo hilo compitiendo por CPU con Whisper. En Apple Silicon
 Whisper corre en la GPU vía MLX, así que la pelea es menor de lo que parece.
+
+---
+
+## ADR-016 — El process tap va en un helper de Swift, no en Python
+
+**Decisión:** `SwiftTapSource` lanza un binario de Swift que crea el Core Audio Process
+Tap y escribe float32 mono por stdout. Python lee el pipe, remuestrea y entrega
+`AudioChunk`, igual que `BlackHoleSource`.
+
+**Motivo:** `AudioHardwareCreateProcessTap`, `CATapDescription` y el IOProc son API de
+Objective-C y bloques de tiempo real. Manejar eso desde Python con ctypes es posible y es
+una mala idea: el IOProc corre en un hilo de tiempo real y el GIL no tiene lugar ahí.
+Además el tap necesita identidad de bundle firmada para que el sistema le pueda dar
+permiso, y un intérprete de Python no la tiene.
+
+**Costo aceptado:** hay que compilar en la primera corrida (`swiftc`, unos segundos) y
+un proceso más vivo durante la captura. El helper se recompila solo si el `.swift` es más
+nuevo que el binario.
+
+---
+
+## ADR-017 — `read()` no puede terminar antes de que la captura arranque
+
+**Decisión:** las fuentes llevan `_ever_started`. El iterador de `read()` sólo termina si
+la captura llegó a correr y ya paró.
+
+**Motivo:** el consumidor arranca su hilo antes que la fuente. Antes, si `start()` se
+demoraba más que el timeout de la cola, `read()` veía la cola vacía y `_running` en False
+y terminaba sin haber leído nada. No era teórico: compilar el helper de F4 dejó la
+máquina lo bastante ocupada como para que las dos pistas devolvieran cero muestras.

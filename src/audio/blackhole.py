@@ -137,6 +137,12 @@ class BlackHoleSource(AudioSource):
         self._resampler: soxr.ResampleStream | None = None
         self._lock = threading.Lock()
         self._running = False
+        # `_ever_started` evita una carrera real: si el consumidor entra a read()
+        # antes de que start() haya corrido, la cola está vacía y `_running` todavía es
+        # False, y el iterador terminaría en el primer timeout sin haber leído nada.
+        # Pasa cuando algo pesado retrasa el arranque — compilar el helper de F4, por
+        # ejemplo. Con esta bandera, read() sólo termina si la captura llegó a correr.
+        self._ever_started = False
 
         # Escritos solo desde el hilo de audio, leídos desde el hilo principal. Enteros,
         # así que el GIL alcanza: no hacen falta locks y un lock ahí adentro sería un
@@ -226,6 +232,7 @@ class BlackHoleSource(AudioSource):
             assert self._stream is not None
             self._stream.start()
             self._running = True
+            self._ever_started = True
 
         log.debug("pista %s: capturando", self._track)
 
@@ -273,7 +280,7 @@ class BlackHoleSource(AudioSource):
             try:
                 ts, pcm = self._queue.get(timeout=0.1)
             except queue.Empty:
-                if not self._running:
+                if not self._running and self._ever_started:
                     return
                 continue
             yield AudioChunk(track=self._track, ts_monotonic=ts, pcm=pcm)

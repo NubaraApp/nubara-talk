@@ -80,8 +80,17 @@ de terceros, sin Multi-Output, sin que el usuario pueda romper el ruteo por acci
 
 **Criterios de salida:**
 
-- [ ] Los mismos criterios de F0, pero sin BlackHole instalado
-- [ ] Ni un cambio fuera de `src/audio/`
+- [ ] Los mismos criterios de F0, pero sin BlackHole instalado — **bloqueado**: el tap
+      entrega bloques del tamaño correcto pero en silencio absoluto, porque el sistema no
+      le dio permiso de grabación de audio al helper. Ver docs/SETUP_AUDIO.md.
+- [ ] Desfase de duración < 2 % — da 5,98 %: arrancar y parar un subproceso cuesta más
+      que abrir un `InputStream`. Sin audio real no vale la pena afinarlo.
+- [x] Ni un cambio fuera de `src/audio/` — los spikes llaman a `make_source()` y no
+      nombran ninguna clase concreta. Cambiar de backend es un argumento, no una edición.
+
+**Lo que sí quedó verificado:** el tap se crea, su UID coincide con el que se le pasa al
+dispositivo agregado, el agregado expone 1 canal de entrada, el formato es float32 mono a
+48 kHz y los callbacks llegan cada 512 frames. La cañería está bien; falta el permiso.
 
 ## F5 — UI
 

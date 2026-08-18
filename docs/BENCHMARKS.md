@@ -126,3 +126,33 @@ errores de Whisper se propagan y se amplifican: "Revenue came in a head of Plant
 Quarter" (mic, con el audio filtrado por el aire) sale como "Los ingresos vinieron de un
 jefe del barrio de Planteys". NLLB no tiene forma de saber que eso está mal. La pista
 `sys`, que toma el audio limpio por BlackHole, no tiene ese problema.
+
+## F4 — captura nativa (no pasa)
+
+Corrida de 12 s con `--sys-device tap`, salida por defecto en las bocinas, hablando por
+`say` mientras grababa.
+
+| Medida | mic (BlackHoleSource) | sys (SwiftTapSource) |
+|---|---|---|
+| Duración | 11.866 s | 11.157 s |
+| RMS | 0.01284 | **0.00000** |
+| Muestras | 189 862 | 178 517 |
+| Overflows | 0 | 0 |
+| Bloques descartados | 0 | 0 |
+
+Desfase de duración 5,98 %, contra un criterio de 2 %. El costo está en arrancar y parar
+un subproceso con su pipe, no en la captura: 0,848 s de audio que no llegan contra 0,139 s
+en la pista de PortAudio. Afinarlo tiene sentido cuando el tap entregue audio de verdad.
+
+**El RMS en cero es un permiso, no un bug.** Lo verificado antes de decir eso: el tap se
+crea sin error, `kAudioTapPropertyUID` coincide con el UID que se le pasa al agregado, el
+agregado expone 1 canal de entrada, el formato es float32 mono 48 kHz y los callbacks
+llegan cada 512 frames durante toda la corrida. Se probaron además las cuatro
+combinaciones de `mono`/`stereo` global y tap privado/público: las cuatro en silencio.
+`tccutil` no reconoce el bundle, así que el permiso no se puede pedir desde acá.
+
+**Efecto colateral útil.** La primera corrida con el tap devolvió cero muestras en *las
+dos* pistas. No fue el tap: compilar el helper con `swiftc` dejó la máquina ocupada lo
+suficiente como para que `start()` tardara más que el timeout de la cola, y `read()`
+terminaba antes de leer nada. Es una carrera que ya existía en `BlackHoleSource` y que
+ninguna corrida anterior había destapado. Arreglada en las dos fuentes (ADR-017).

@@ -20,7 +20,8 @@ import numpy as np
 import sounddevice as sd
 
 from src.audio.base import Track
-from src.audio.blackhole import BlackHoleSource, check_default_output, find_device
+from src.audio.blackhole import check_default_output, find_device
+from src.audio.factory import TAP, make_source
 from src.stt.engine import MlxBackend, Result, TranscriptionEngine, default_backend
 from src.stt.pipeline import SessionWriter, TrackPipeline
 from src.stt.vad import TurnDetector
@@ -176,8 +177,10 @@ def main() -> int:
             return 2
         mic_device = int(default_in)
 
-    def resolve(value: int | str) -> int:
+    def resolve(value: int | str) -> int | str:
         text = str(value)
+        if text.lower() == TAP:
+            return TAP
         return int(text) if text.lstrip("-").isdigit() else find_device(text)
 
     try:
@@ -237,7 +240,7 @@ def main() -> int:
     warmup = engine.warmup()
     print(f"  listo en {warmup:.1f} s")
 
-    sources = [BlackHoleSource("mic", mic_id), BlackHoleSource("sys", sys_id)]
+    sources = [make_source("mic", mic_id), make_source("sys", sys_id)]
     for src in sources:
         src.open()
 

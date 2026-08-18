@@ -24,3 +24,4 @@ models/
 
 # Binario del helper de audio
 scripts/make_multioutput
+build/

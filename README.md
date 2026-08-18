@@ -112,7 +112,8 @@ spike avisa cuál eligió antes de enviar nada.
 
 ## Estado
 
-**F0, F1, F2 y F3 cerrados.** Falta captura nativa (F4) y UI (F5).
+**F0, F1, F2 y F3 cerrados.** F4 (captura nativa) está escrito y bloqueado por el
+permiso de grabación de audio del sistema: ver `docs/SETUP_AUDIO.md`. Falta la UI (F5).
 
 ## Licencia
 

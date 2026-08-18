@@ -22,7 +22,8 @@ import numpy as np
 import sounddevice as sd
 
 from src.audio.base import TARGET_SR, AudioSource, Track
-from src.audio.blackhole import BLOCK_MS, BlackHoleSource, check_default_output, find_device
+from src.audio.blackhole import BLOCK_MS, check_default_output, find_device
+from src.audio.factory import TAP, make_source
 
 log = logging.getLogger("f0")
 
@@ -85,8 +86,8 @@ def capture(
     seconds: float, mic_device: int | str, sys_device: int | str, out_dir: Path
 ) -> list[TrackResult]:
     sources = [
-        BlackHoleSource("mic", mic_device),
-        BlackHoleSource("sys", sys_device),
+        make_source("mic", mic_device),
+        make_source("sys", sys_device),
     ]
 
     buffers: dict[Track, list[np.ndarray]] = {"mic": [], "sys": []}
@@ -136,7 +137,6 @@ def capture(
 
     results = []
     for src in sources:
-        assert isinstance(src, BlackHoleSource)
         blocks = buffers[src.track]
         pcm = np.concatenate(blocks) if blocks else np.zeros(0, dtype=np.float32)
         ts = stamps[src.track]
@@ -299,7 +299,8 @@ def main() -> int:
         # ahora y no después de haber grabado 20 s de una sola pista.
         if isinstance(mic_device, str):
             mic_device = find_device(mic_device)
-        if isinstance(sys_device, str):
+        # 'tap' no es un dispositivo de PortAudio: lo resuelve la fábrica.
+        if isinstance(sys_device, str) and sys_device.lower() != TAP:
             sys_device = find_device(sys_device)
     except RuntimeError as exc:
         print(f"\nERROR: {exc}", file=sys.stderr)
