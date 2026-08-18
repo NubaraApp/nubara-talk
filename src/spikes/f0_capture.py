@@ -76,7 +76,9 @@ def _write_wav(path: Path, pcm: np.ndarray) -> None:
         wav.writeframes(pcm16.tobytes())
 
 
-def capture(seconds: float, mic_device: int | str, sys_device: int | str, out_dir: Path) -> list[TrackResult]:
+def capture(
+    seconds: float, mic_device: int | str, sys_device: int | str, out_dir: Path
+) -> list[TrackResult]:
     sources = [
         BlackHoleSource("mic", mic_device),
         BlackHoleSource("sys", sys_device),
@@ -150,7 +152,8 @@ def report(results: list[TrackResult], seconds: float) -> bool:
         print(f"    duración          {res.duration:8.3f} s   (pared: {res.elapsed:.3f} s)")
         print(f"    RMS               {res.rms:8.5f}")
         print(f"    muestras          {len(res.pcm):8d}")
-        print(f"    muestras perdidas {res.lost_samples:8d}   ({res.lost_samples / TARGET_SR:.3f} s)")
+        lost_s = res.lost_samples / TARGET_SR
+        print(f"    muestras perdidas {res.lost_samples:8d}   ({lost_s:.3f} s)")
         print(f"    overflows         {res.overflows:8d}")
         print(f"    bloques a la cola {res.dropped_blocks:8d}   (descartados por cola llena)")
         print(f"    archivo           {res.path}")
@@ -158,12 +161,11 @@ def report(results: list[TrackResult], seconds: float) -> bool:
     dur_skew = abs(mic.duration - sysx.duration) / max(mic.duration, sysx.duration, 1e-9)
     overflow_budget = OVERFLOWS_PER_20S * seconds / 20.0
 
-    if mic.first_ts is not None and sysx.first_ts is not None:
-        ts_skew: float | None = max(
-            abs(mic.first_ts - sysx.first_ts), abs(mic.last_ts - sysx.last_ts)  # type: ignore[arg-type]
-        )
-    else:
-        ts_skew = None
+    ts_skew: float | None = None
+    if None not in (mic.first_ts, sysx.first_ts, mic.last_ts, sysx.last_ts):
+        skew_start = abs(mic.first_ts - sysx.first_ts)  # type: ignore[operator]
+        skew_end = abs(mic.last_ts - sysx.last_ts)  # type: ignore[operator]
+        ts_skew = max(skew_start, skew_end)
 
     checks: list[tuple[str, bool, str]] = [
         (
@@ -295,8 +297,11 @@ def main() -> int:
         results = capture(args.seconds, mic_device, sys_device, args.out_dir)
     except sd.PortAudioError as exc:
         print(f"\nERROR de PortAudio: {exc}", file=sys.stderr)
-        print("  Si dice algo de permisos: Configuración del Sistema > Privacidad y", file=sys.stderr)
-        print("  seguridad > Micrófono, y activá tu terminal.", file=sys.stderr)
+        print(
+            "  Si menciona permisos: Configuración del Sistema > Privacidad y seguridad\n"
+            "  > Micrófono, y activá tu terminal.",
+            file=sys.stderr,
+        )
         return 2
 
     print(f"\n(bloques de {BLOCK_MS} ms, remuestreados a {TARGET_SR} Hz)")
