@@ -18,11 +18,7 @@ Caso de uso: reuniones en inglés donde necesitás entender y responder.
 No hay diarización de hablantes. No hace falta: `mic` sos vos, `sys` son los demás.
 Ver [docs/DECISIONS.md](docs/DECISIONS.md).
 
-## Estado
-
-**F1 — STT en vivo.** Captura dual y transcripción de ambas pistas funcionando, con
-persistencia en SQLite. Falta traducción, puente LLM y UI.
-Ver [docs/PLAN.md](docs/PLAN.md).
+Ver [docs/PLAN.md](docs/PLAN.md) para el estado de cada fase.
 
 ## Requisitos
 
@@ -70,6 +66,30 @@ Idioma por pista con `--lang-mic` y `--lang-sys`, o `auto` para detectarlo:
 ```bash
 python -m src.spikes.f1_transcribe --lang-mic es --lang-sys en
 ```
+
+## Pedirle algo al LLM (F2)
+
+```bash
+python -m src.spikes.f2_respond --list-prompts
+```
+
+```bash
+python -m src.spikes.f2_respond --prompt responder --turns 3
+```
+
+Toma los últimos segmentos de la sesión, arma el prompt con una plantilla de
+`config/prompts.yaml` y se lo manda a la CLI por `subprocess`. `--dry-run` muestra el
+prompt sin invocar nada.
+
+Por defecto usa la primera CLI instalada de la lista, que empieza por una local: el
+fragmento de la reunión no sale de la máquina. `--cli claude` la manda a una remota, y el
+spike avisa cuál eligió antes de enviar nada.
+
+**No hay ninguna clave de API en el repo.** Se usa la CLI que ya tengas autenticada.
+
+## Estado
+
+**F0, F1 y F2 cerrados.** Falta traducción local (F3), captura nativa (F4) y UI (F5).
 
 ## Licencia
 

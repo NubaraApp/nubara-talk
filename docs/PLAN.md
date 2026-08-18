@@ -48,11 +48,13 @@ invocar la CLI del LLM por `subprocess` y mostrar la respuesta.
 
 **Sin claves de API en el repo.** Se usa la CLI ya autenticada del usuario.
 
-**Criterios de salida:**
+**Criterios de salida — cumplidos el 2026-08-18:**
 
-- [ ] Plantillas cargadas desde `config/prompts.yaml`, no hardcodeadas
-- [ ] `subprocess` con timeout y manejo de error si la CLI no está autenticada
-- [ ] Cero secretos en el repo
+- [x] Plantillas cargadas desde `config/prompts.yaml`, no hardcodeadas — 4 plantillas, y
+      los marcadores se validan al cargar el archivo
+- [x] `subprocess` con timeout y manejo de error si la CLI no está autenticada —
+      verificado contra una CLI inexistente, un proceso colgado y `claude` sin login
+- [x] Cero secretos en el repo — escaneo de patrones en cada corrida del spike
 
 ## F3 — Traducción local
 

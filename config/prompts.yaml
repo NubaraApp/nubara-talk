@@ -1,13 +1,32 @@
-# Plantillas de prompts para el puente LLM (F2). Esqueleto: todavía no se leen.
+# Configuración del puente LLM (F2).
 #
-# Cada plantilla recibe:
-#   {fragmento}  el texto seleccionado de la transcripción
-#   {contexto}   los N segmentos previos, para dar contexto
-#   {idioma}     idioma en el que se quiere la salida
+# El LLM se invoca por CLI, con subprocess. Sin claves de API acá ni en ningún otro lado
+# del repo: se usa la CLI que ya tenés autenticada. Ver ADR-008.
 #
-# El LLM se invoca por CLI. Sin claves de API acá ni en ningún otro lado del repo.
+# PRIVACIDAD: el fragmento de transcripción se le manda a la CLI que elijas. Con `ollama`
+# no sale de la máquina. Con `claude` viaja al proveedor. Si las reuniones son sensibles,
+# poné una CLI local primero en la lista.
 
 version: 1
+
+cli:
+  # Se prueban en orden. Se usa la primera que esté instalada y responda.
+  candidatos:
+    - id: ollama
+      comando: [ollama, run, gemma4, --hidethinking, --nowordwrap]
+      local: true
+    - id: claude
+      comando: [claude, -p]
+      local: false
+
+  timeout_s: 120
+
+# Cada plantilla recibe:
+#   {fragmento}  el texto seleccionado de la transcripción
+#   {contexto}   los segmentos previos, para dar contexto
+#   {idioma}     idioma en el que se quiere la salida
+#
+# Cualquier otro marcador entre llaves hace fallar la carga: es un typo, no una feature.
 
 prompts:
   - id: responder
@@ -21,13 +40,14 @@ prompts:
       {fragmento}
 
       Redactá una respuesta breve y profesional en {idioma}. Solo la respuesta,
-      sin preámbulo.
+      sin preámbulo ni comentarios sobre la tarea.
 
   - id: traducir_bien
     nombre: Traducir con cuidado
     descripcion: Traducción de calidad, más lenta que la del subtitulado en vivo.
     plantilla: |
-      Traducí al {idioma}, respetando el registro y la terminología técnica:
+      Traducí al {idioma}, respetando el registro y la terminología técnica.
+      Devolvé solo la traducción.
 
       {fragmento}
 
@@ -39,5 +59,13 @@ prompts:
       {contexto}
 
       Explicá en {idioma} qué significa esto, incluyendo cualquier sigla o jerga:
+
+      {fragmento}
+
+  - id: resumir
+    nombre: Resumir lo hablado
+    descripcion: Resume el tramo seleccionado en puntos.
+    plantilla: |
+      Resumí en {idioma}, en tres o cuatro puntos, lo hablado acá:
 
       {fragmento}

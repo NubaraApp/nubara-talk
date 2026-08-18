@@ -77,3 +77,17 @@ así que las dos pistas transcribieron el mismo discurso: sirve para probar que 
 corren en paralelo sin bloquearse, pero no es un escenario de dos hablantes reales. La
 transcripción del mic salió peor —"Revenue came in a head of Planteys Quarter"— que es
 lo esperable de audio acústico con reverberación.
+
+
+## F2 — puente LLM por CLI
+
+| Qué se mide | Valor | Fecha |
+|-------------|-------|-------|
+| Respuesta completa, `ollama run gemma4` local | 8.1 s | 2026-08-18 |
+| Prompt de 2 segmentos + 4 de contexto | ~60 palabras | 2026-08-18 |
+
+El costo de arranque de proceso más la carga del modelo domina: por eso la CLI se reserva
+para pedidos bajo demanda y **no** se usa para el subtitulado en vivo. Ver ADR-006.
+
+`claude -p` no se pudo medir: la CLI está instalada pero sin login en este equipo. El
+puente lo detecta y lo reporta como tal, en lugar de tratarlo como un fallo genérico.

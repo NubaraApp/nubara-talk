@@ -155,3 +155,29 @@ persona todavía está hablando.
 **Costo aceptado:** un corte forzado puede caer en mitad de una palabra. Es el mismo
 problema que ADR-005 quería evitar, pero acotado: pasa una vez cada 15 s de habla continua
 en lugar de en cada ventana.
+
+---
+
+## ADR-012 — La CLI local va primero en la lista de candidatos
+
+**Decisión:** `config/prompts.yaml` lista varias CLI y se usa la primera instalada. El
+orden por defecto pone `ollama` antes que `claude`.
+
+**Motivo:** el prompt lleva un fragmento literal de la reunión. Con una CLI local el texto
+no sale de la máquina; con una remota viaja al proveedor. Para transcripciones de
+reuniones eso es una diferencia real, y el default tiene que ser el conservador.
+
+**Costo aceptado:** un modelo local da respuestas peores que uno grande. Se cambia con
+`--cli claude`, que es una decisión consciente por invocación, no un default silencioso.
+El spike imprime siempre si la CLI elegida es local o remota antes de mandar nada.
+
+---
+
+## ADR-013 — El prompt va por stdin, nunca por argv
+
+**Decisión:** `subprocess.run(comando, input=prompt)`, sin `shell=True`.
+
+**Motivo:** un tramo de reunión largo excede el límite de tamaño de los argumentos del
+sistema. Y pasarlo por argv obliga a preocuparse por el quoting de un texto que viene de
+una transcripción automática, que puede contener cualquier cosa. Por stdin no hay nada
+que escapar.
