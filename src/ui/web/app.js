@@ -45,7 +45,14 @@ function handle(msg) {
     case "transcript": return onTranscript(msg);
     case "search_result": return onResults(msg.rows);
     case "answer": return onAnswer(msg);
-    case "error": return toast(msg.message);
+    case "error": {
+      const answer = el("answer");
+      if (answer.classList.contains("pending")) {
+        answer.classList.remove("pending");
+        answer.textContent = "";
+      }
+      return toast(msg.message);
+    }
   }
 }
 
@@ -63,7 +70,7 @@ function bubbleFor(track, index) {
   node.className = `bubble ${track}`;
   node.innerHTML = `<div class="who"><b>${SPEAKER[track] || track}</b><span class="t"></span></div>
                     <div class="text"></div><div class="trad"></div>`;
-  node.onclick = () => toggleSelect(node, track, index);
+  node.onclick = (event) => toggleSelect(node, track, index, event);
   stream.appendChild(node);
   el("empty").classList.add("hidden");
   return node;
@@ -98,32 +105,82 @@ function onTranscript(msg) {
 function clearStream() {
   stream.innerHTML = "";
   selected.clear();
+  lastClicked = null;
   renderSelection();
   el("empty").classList.toggle("hidden", false);
 }
 
 // ---------------------------------------------------------------- selección
 
-function toggleSelect(node, track, index) {
-  const id = key(track, index);
-  if (selected.has(id)) selected.delete(id);
-  else selected.set(id, { track, turn_index: index });
-  node.classList.toggle("sel", selected.has(id));
+let lastClicked = null;
+
+function toggleSelect(node, track, index, event) {
+  // Shift extiende desde la última burbuja tocada: elegir un tramo de diálogo de a una
+  // es lo que uno hace más seguido, y de a un clic es tedioso en medio de una reunión.
+  if (event && event.shiftKey && lastClicked) {
+    const nodes = [...stream.children];
+    const from = nodes.indexOf(lastClicked);
+    const to = nodes.indexOf(node);
+    if (from !== -1 && to !== -1) {
+      for (const n of nodes.slice(Math.min(from, to), Math.max(from, to) + 1)) select(n, true);
+      lastClicked = node;
+      return renderSelection();
+    }
+  }
+  select(node, !selected.has(key(track, index)));
+  lastClicked = node;
   renderSelection();
+}
+
+function select(node, on) {
+  const [track, index] = [node.className.includes("mic") ? "mic" : "sys", Number(node.id.split("-")[1])];
+  const id = key(track, index);
+  if (on) selected.set(id, { track, turn_index: index });
+  else selected.delete(id);
+  node.classList.toggle("sel", on);
 }
 
 function renderSelection() {
   const n = selected.size;
-  el("selcount").textContent = n
-    ? `${n} fragmento${n > 1 ? "s" : ""} elegido${n > 1 ? "s" : ""}.`
-    : "Ninguno. Hacé clic en las burbujas para elegir.";
+  el("actionbar").classList.toggle("hidden", n === 0);
+  if (!n) return;
+  el("selcount").textContent = `${n} frase${n > 1 ? "s" : ""}`;
+  const text = [...selected.keys()]
+    .map((id) => document.getElementById(id)?.querySelector(".text").textContent || "")
+    .join(" · ");
+  el("selpreview").textContent = text;
+  el("selpreview").title = text;
 }
 
-el("clear").onclick = () => {
+function clearSelection() {
   for (const id of selected.keys()) document.getElementById(id)?.classList.remove("sel");
   selected.clear();
+  lastClicked = null;
   renderSelection();
+}
+
+el("clear").onclick = clearSelection;
+
+// La acción más común en una reunión es responder a lo último que dijeron. Un clic.
+el("reply-last").onclick = () => {
+  const bubbles = [...stream.children].filter((n) => n.classList.contains("sys"));
+  const last = bubbles[bubbles.length - 1];
+  if (!last) return toast("Todavía no dijeron nada.");
+  clearSelection();
+  select(last, true);
+  lastClicked = last;
+  renderSelection();
+  last.scrollIntoView({ block: "center" });
+  const first = el("prompts").querySelector("button");
+  if (first) first.click();
 };
+
+document.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    el("prompts").querySelector("button")?.click();
+  }
+  if (event.key === "Escape") clearSelection();
+});
 
 // ---------------------------------------------------------------- prompts
 
@@ -155,12 +212,13 @@ function onPrompts(msg) {
 function ask(template) {
   if (!selected.size) return toast("Elegí al menos un fragmento.");
   const answer = el("answer");
-  answer.classList.remove("hidden");
+  answer.classList.add("pending");
   answer.textContent = "pensando…";
   send({
     type: "ask",
     template,
     cli: el("cli").value || null,
+    idioma: el("idioma").value,
     session_id: viewing || sessionId,
     keys: [...selected.values()],
   });
@@ -168,12 +226,14 @@ function ask(template) {
 
 function onAnswer(msg) {
   const answer = el("answer");
+  answer.classList.remove("pending");
   answer.innerHTML = "";
   const meta = document.createElement("div");
   meta.className = "meta";
-  meta.innerHTML = msg.local
-    ? `${msg.cli} · local · ${msg.elapsed.toFixed(1)}s`
-    : `<span class="remote">${msg.cli} · remota — el texto salió de tu máquina</span> · ${msg.elapsed.toFixed(1)}s`;
+  const who = msg.local
+    ? `${msg.cli} · local`
+    : `<span class="remote">${msg.cli} · remota — el texto salió de tu máquina</span>`;
+  meta.innerHTML = `${who} · en ${msg.idioma} · ${msg.elapsed.toFixed(1)}s`;
   const body = document.createElement("div");
   body.textContent = msg.text;
   answer.append(meta, body);

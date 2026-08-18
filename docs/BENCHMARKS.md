@@ -200,3 +200,17 @@ variable es quién lo lanza.
 
 Lo que no volví a medir: el desfase de duración entre pistas con el tap. La última medición
 daba 5,98 % y fue sobre audio en silencio. Queda abierto.
+
+## Idioma de la respuesta
+
+Misma plantilla (`responder`), mismo `idioma: auto`, dos idiomas de entrada:
+
+| Oído | Respuesta |
+|---|---|
+| `Can you send me the migration timeline before Friday?` | *(en inglés)* Yes, I can send you the migration timeline before Friday. |
+| *(en español)* | *(en español)* Disculpe, ¿podrían por favor repetir o aclarar…? |
+
+El ruteo de idioma funciona. Lo que no funcionó bien fue la transcripción del español:
+`say -v Eddy` por los parlantes y de vuelta por el micrófono salió como "Me pudez monder
+el chronograma democracia en anties delvines". Es una limitación de la prueba, no del
+ruteo — el audio sintético reproducido y recapturado por el aire es el peor caso posible.

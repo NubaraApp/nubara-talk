@@ -301,3 +301,19 @@ real lanzado por la app. Lo que cambia es a quién le atribuye el sistema la cap
 **Costo aceptado:** los spikes de línea de comandos no pueden probar el tap. Para eso está
 la casilla *captura nativa* en la ventana. Y la app queda firmada ad-hoc, así que el
 permiso se pierde si se recompila y cambia el hash.
+
+---
+
+## ADR-022 — La respuesta va en el idioma del fragmento, no en el mío
+
+**Decisión:** `answer_language()` mira el campo `lang` de los segmentos elegidos y le pide
+al LLM que conteste en ese idioma. La UI puede forzarlo, pero el default es automático.
+
+**Motivo:** la respuesta es para leérsela a quien preguntó. Si en la reunión te preguntan
+en inglés, una respuesta en español no sirve para nada: habría que traducirla en la
+cabeza, en voz alta y con la reunión esperando. El caso de uso del proyecto es
+justamente ese — reuniones en inglés.
+
+**Costo aceptado:** si Whisper se equivoca de idioma, la respuesta sale en el idioma
+equivocado. Por eso el selector de la UI tiene español e inglés fijos además de
+automático.

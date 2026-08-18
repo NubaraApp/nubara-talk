@@ -93,3 +93,40 @@ aside { border-left: 1px solid var(--line); background: var(--panel); overflow-y
 .hit small, .session small { color: var(--muted); }
 
 .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #3a1e1e; border: 1px solid #7a3a3a; padding: 9px 14px; border-radius: 8px; max-width: 60ch; }
+
+/* Barra de acción: aparece pegada abajo del stream cuando hay algo elegido. Va acá y
+   no en la barra lateral porque es donde está mirando el usuario mientras habla. */
+.actionbar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: rgba(28, 31, 38, .96);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+}
+.actionbar .sel { display: flex; flex-direction: column; min-width: 150px; max-width: 34%; }
+.actionbar .sel span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.actionbar .prompts { flex: 1; }
+.actionbar button:first-of-type { border-color: var(--accent); }
+
+.bubble:hover { border-color: #4a5570; }
+.bubble.sel { background: #3a4a6b; }
+.bubble.mic.sel { background: #3c6350; }
+
+kbd {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 5px;
+  font: inherit;
+  font-size: 11px;
+}
+
+.answer.pending { color: var(--muted); font-style: italic; }

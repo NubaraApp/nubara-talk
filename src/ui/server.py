@@ -48,6 +48,39 @@ WEB_ROOT = Path(__file__).with_name("web")
 
 SPEAKER = {"mic": "Yo", "sys": "Ellos"}
 
+# Las plantillas están escritas en español, así que el nombre del idioma también.
+LANG_NAMES = {
+    "en": "inglés",
+    "es": "español",
+    "pt": "portugués",
+    "fr": "francés",
+    "de": "alemán",
+    "it": "italiano",
+    "ca": "catalán",
+    "nl": "neerlandés",
+}
+
+
+def answer_language(rows: list[sqlite3.Row], asked: str | None) -> str:
+    """En qué idioma tiene que contestar el LLM.
+
+    Por defecto, en el mismo idioma del fragmento elegido: si la pregunta vino en
+    inglés, contestar en español no sirve para nada — la respuesta es para leérsela a
+    quien preguntó. Se puede forzar desde la UI.
+    """
+    if asked and asked != "auto":
+        return asked
+
+    votes: dict[str, int] = {}
+    for row in rows:
+        code = (row["lang"] or "").lower()
+        if code:
+            votes[code] = votes.get(code, 0) + 1
+    if not votes:
+        return "español"
+    winner = max(votes, key=lambda code: votes[code])
+    return LANG_NAMES.get(winner, winner)
+
 
 def _row(row: sqlite3.Row) -> dict[str, Any]:
     return {k: row[k] for k in row.keys()}
@@ -308,13 +341,13 @@ class Hub:
         )
 
         spec = bridge.pick(self._prompts.candidates, payload.get("cli") or None)
-        prompt = template.render(
-            fragmento=fragmento, contexto=contexto, idioma=payload.get("idioma", "español")
-        )
+        idioma = answer_language(rows, payload.get("idioma"))
+        prompt = template.render(fragmento=fragmento, contexto=contexto, idioma=idioma)
         cli = bridge.LlmCli(spec, timeout_s=self._prompts.timeout_s)
         response = cli.run(prompt)
         return {
             "text": response.text,
+            "idioma": idioma,
             "cli": response.cli_id,
             "local": spec.local,
             "elapsed": response.elapsed,

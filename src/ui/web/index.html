@@ -16,6 +16,7 @@
     <label>Yo <select id="lang-mic"><option value="en">inglés</option><option value="es" selected>español</option><option value="">auto</option></select></label>
     <label><input type="checkbox" id="traducir" checked /> traducir a español</label>
     <label title="Core Audio Process Tap: no necesita BlackHole. Requiere permiso de grabación de audio."><input type="checkbox" id="nativo" /> captura nativa</label>
+    <button id="reply-last" title="Elige el último turno de Ellos y pide respuesta">Responder al último</button>
     <button id="toggle" class="primary">Empezar</button>
   </header>
 
@@ -23,18 +24,32 @@
     <section id="stream-pane">
       <div id="stream" class="stream"></div>
       <div id="empty" class="empty">Nada todavía. Dale a <b>Empezar</b>, o cargá una sesión anterior.</div>
+
+      <div id="actionbar" class="actionbar hidden">
+        <div class="sel">
+          <b id="selcount">0 elegidos</b>
+          <span id="selpreview" class="muted"></span>
+        </div>
+        <div id="prompts" class="prompts"></div>
+        <label>responder en
+          <select id="idioma">
+            <option value="auto" selected>el idioma del fragmento</option>
+            <option value="español">español</option>
+            <option value="inglés">inglés</option>
+          </select>
+        </label>
+        <select id="cli"></select>
+        <button id="clear">Limpiar</button>
+      </div>
     </section>
 
     <aside>
       <div class="card">
-        <h2>Fragmento seleccionado</h2>
-        <p id="selcount" class="muted">Ninguno. Hacé clic en las burbujas para elegir.</p>
-        <div class="row">
-          <select id="cli"></select>
-          <button id="clear">Limpiar</button>
+        <h2>Respuesta</h2>
+        <div id="answer" class="answer">
+          <span class="muted">Elegí una o más frases y pedí una respuesta. Con
+          <kbd>⌘</kbd><kbd>↵</kbd> se dispara la primera plantilla.</span>
         </div>
-        <div id="prompts" class="prompts"></div>
-        <div id="answer" class="answer hidden"></div>
       </div>
 
       <div class="card">
