@@ -178,3 +178,22 @@ def search(
         params["sid"] = session_id
     sql += " ORDER BY rank LIMIT :limit"
     return list(conn.execute(sql, params))
+
+
+def update_translation(
+    conn: sqlite3.Connection, session_id: str, track: str, turn_index: int, text_trad: str
+) -> None:
+    """Guarda la traducción de un turno ya escrito.
+
+    Va aparte de `upsert_segment` porque la traducción llega después que el texto: el
+    turno se persiste apenas transcribe y se completa cuando el traductor termina. El
+    trigger de UPDATE reindexa la fila en FTS5, así que `text_trad` queda buscable.
+    """
+    conn.execute(
+        """
+        UPDATE segments SET text_trad = :trad
+        WHERE session_id = :sid AND track = :track AND turn_index = :idx
+        """,
+        {"trad": text_trad, "sid": session_id, "track": track, "idx": turn_index},
+    )
+    conn.commit()

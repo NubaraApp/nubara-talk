@@ -8,5 +8,11 @@ PyYAML>=6.0
 mlx-whisper>=0.4.3
 silero-vad>=5.1
 
+# F3 — traducción local. CTranslate2 corre el modelo; transformers sólo aporta el
+# tokenizer de NLLB, que necesita sentencepiece.
+ctranslate2>=4.5
+transformers>=4.40
+sentencepiece>=0.2
+
 # Fallback para Intel. No se instala por defecto: en Apple Silicon no se usa nunca.
 #   pip install faster-whisper

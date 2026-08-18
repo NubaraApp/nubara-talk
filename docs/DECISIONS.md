@@ -181,3 +181,34 @@ El spike imprime siempre si la CLI elegida es local o remota antes de mandar nad
 sistema. Y pasarlo por argv obliga a preocuparse por el quoting de un texto que viene de
 una transcripción automática, que puede contener cualquier cosa. Por stdin no hay nada
 que escapar.
+
+---
+
+## ADR-014 — NLLB-200 distilled 600M en CTranslate2, no la CLI del LLM
+
+**Decisión:** el subtitulado en vivo lo hace NLLB-200 distilled 600M cuantizado a int8
+sobre CTranslate2, en CPU. La CLI de F2 queda para "traducí esto bien" bajo demanda.
+
+**Motivo:** presupuesto de latencia. Medido en este equipo, NLLB traduce un segmento de
+reunión en 199 ms de mediana; el mismo texto por `ollama run gemma4` tarda del orden de
+segundos y hay que pagarlo en cada turno de las dos pistas. Además NLLB es un modelo de
+traducción: no reformula ni comenta, que es exactamente lo que se quiere en un subtítulo.
+
+**Costo aceptado:** 621 MB de modelo en disco y un dependencia más (`transformers`, sólo
+por el tokenizer). NLLB traduce peor los nombres propios y las frases a medias que salen
+de un parcial de STT.
+
+---
+
+## ADR-015 — La traducción vive en su propio hilo, con descarte de parciales
+
+**Decisión:** `TranslationWorker` tiene cola e hilo propios. El motor de STT le entrega
+resultados y sigue. Los finales tienen prioridad y un parcial se descarta si ya entró uno
+más nuevo de la misma pista.
+
+**Motivo:** el motor de STT llama a sus callbacks desde el hilo de inferencia. Traducir
+ahí sumaría 200 ms al turno siguiente de las dos pistas. El descarte es el mismo criterio
+de ADR-009: el texto de un parcial viejo ya está obsoleto antes de salir de la cola.
+
+**Costo aceptado:** un segundo hilo compitiendo por CPU con Whisper. En Apple Silicon
+Whisper corre en la GPU vía MLX, así que la pelea es menor de lo que parece.

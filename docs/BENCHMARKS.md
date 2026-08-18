@@ -91,3 +91,38 @@ para pedidos bajo demanda y **no** se usa para el subtitulado en vivo. Ver ADR-0
 
 `claude -p` no se pudo medir: la CLI está instalada pero sin login en este equipo. El
 puente lo detecta y lo reporta como tal, en lugar de tratarlo como un fallo genérico.
+
+## F3 — traducción local
+
+MacBook Pro M-series, NLLB-200 distilled 600M cuantizado a int8, CTranslate2 en CPU con
+4 hilos, `beam_size=1`. Corrida con `HF_HUB_OFFLINE=1`: nada sale a la red.
+
+| Medida | Valor |
+|---|---|
+| Modelo en disco | 621 MB |
+| Carga del modelo | 0.65 s |
+| Primera inferencia | 0.149 s |
+| Latencia mediana por segmento | 0.199 s |
+| Latencia p95 | 0.244 s |
+| Latencia máxima | 0.246 s |
+| Lote de 16 vs 16 llamadas sueltas | 3.36x más rápido |
+
+Sobre los 16 segmentos confirmados de una sesión real de F1, traducidos de inglés a
+español. El presupuesto de F3 era 300 ms por segmento.
+
+**En vivo, con Whisper corriendo al mismo tiempo**, la latencia de traducción sube a
+250–300 ms: el traductor está en CPU y compite con el resto del proceso. Sigue dentro del
+presupuesto, pero el margen es mucho más chico que en la corrida en frío. Si en F5 hiciera
+falta más aire, la palanca es bajar `intra_threads` o traducir sólo los finales.
+
+**Verificación del tokenizer.** `transformers` 5.x avisa que el `tokenizer.json` copiado
+tiene "an incorrect regex pattern". El aviso es espurio para NLLB: comparando el tokenizer
+copiado contra el original de `facebook/nllb-200-distilled-600M` (`use_fast=False`), los
+ids coinciden exactamente en frases con puntuación, porcentajes y abreviaturas. Se dejó
+constancia acá porque el mensaje asusta y va a volver a aparecer.
+
+**Calidad, sin maquillaje.** La traducción es buena cuando la transcripción es buena. Los
+errores de Whisper se propagan y se amplifican: "Revenue came in a head of Planteys
+Quarter" (mic, con el audio filtrado por el aire) sale como "Los ingresos vinieron de un
+jefe del barrio de Planteys". NLLB no tiene forma de saber que eso está mal. La pista
+`sys`, que toma el audio limpio por BlackHole, no tiene ese problema.

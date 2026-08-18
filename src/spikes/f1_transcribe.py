@@ -24,7 +24,14 @@ from src.audio.blackhole import BlackHoleSource, check_default_output, find_devi
 from src.stt.engine import MlxBackend, Result, TranscriptionEngine, default_backend
 from src.stt.pipeline import SessionWriter, TrackPipeline
 from src.stt.vad import TurnDetector
-from src.store.db import DEFAULT_DB_PATH, connect, create_session, end_session, transcript
+from src.store.db import (
+    DEFAULT_DB_PATH,
+    connect,
+    create_session,
+    end_session,
+    transcript,
+    update_translation,
+)
 
 log = logging.getLogger("f1")
 
@@ -143,6 +150,12 @@ def main() -> int:
     parser.add_argument("--max-turn", type=float, default=15.0)
     parser.add_argument("--partial-every", type=float, default=2.5)
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH)
+    parser.add_argument(
+        "--traducir",
+        default=None,
+        metavar="IDIOMA",
+        help="traduce en vivo a este idioma (ej. es). Requiere el modelo de F3.",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -185,11 +198,34 @@ def main() -> int:
     conn = connect(args.db)
     writer = SessionWriter(conn, session_id)
 
+    trad_worker = None
+    if args.traducir:
+        from src.translate.nllb import Translator
+        from src.translate.worker import TranslationWorker
+
+        print("  cargando el traductor...", flush=True)
+        translator = Translator()
+        # Conexión propia: el hilo de traducción escribe en paralelo al de STT y una
+        # sola conexión compartida entre dos escritores es pedir un "database is locked".
+        trad_conn = connect(args.db)
+
+        def on_trad(t) -> None:
+            turn = t.result.turn
+            update_translation(trad_conn, session_id, turn.track, turn.index, t.text)
+            with _print_lock:
+                print(f"    -> [{turn.track}] {t.text}   ({t.latency * 1000:.0f} ms)", flush=True)
+
+        trad_worker = TranslationWorker(translator, args.traducir, on_trad)
+        trad_worker.start()
+        print(f"  traduciendo a {args.traducir} ({translator.load_time:.1f} s de carga)")
+
     def on_result(result: Result) -> None:
         with results_lock:
             results.append(result)
         _show(result)
         writer(result)
+        if trad_worker is not None:
+            trad_worker.submit(result)
 
     engine = TranscriptionEngine(
         on_result,
@@ -245,6 +281,15 @@ def main() -> int:
 
     print("\n  vaciando la cola de transcripción...", flush=True)
     engine.stop(drain=True)
+    if trad_worker is not None:
+        print("  vaciando la cola de traducción...", flush=True)
+        trad_worker.stop()
+        print(
+            f"  traducidos {trad_worker.translated}, "
+            f"parciales descartados {trad_worker.dropped_partials}, "
+            f"mismo idioma {trad_worker.skipped_same_lang}"
+        )
+        trad_conn.close()
     end_session(conn, session_id, time.monotonic())
 
     rows = transcript(conn, session_id)

@@ -65,8 +65,12 @@ subtitulado en vivo (demasiado lento y caro en latencia).
 
 **Criterios de salida:**
 
-- [ ] Traducción de un segmento típico < 300 ms
-- [ ] `text_trad` poblado en SQLite y buscable vía FTS5
+- [x] Traducción de un segmento típico < 300 ms — mediana 199 ms, p95 244 ms sobre los
+      16 segmentos de una sesión real
+- [x] `text_trad` poblado en SQLite y buscable vía FTS5 — el trigger de UPDATE reindexa,
+      verificado buscando una palabra que sólo existe en la traducción
+- [x] Traducción en vivo durante la captura — `f1_transcribe --traducir es`
+- [x] Sin red: el spike corre con `HF_HUB_OFFLINE=1`
 
 ## F4 — Captura nativa
 

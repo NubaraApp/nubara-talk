@@ -67,6 +67,29 @@ Idioma por pista con `--lang-mic` y `--lang-sys`, o `auto` para detectarlo:
 python -m src.spikes.f1_transcribe --lang-mic es --lang-sys en
 ```
 
+## Traducción local (F3)
+
+La primera vez hay que convertir el modelo (baja ~2.5 GB y deja 621 MB en disco):
+
+```bash
+.venv/bin/ct2-transformers-converter --model facebook/nllb-200-distilled-600M \
+  --output_dir models/nllb-200-distilled-600M-ct2 --quantization int8 \
+  --copy_files tokenizer.json tokenizer_config.json special_tokens_map.json \
+  sentencepiece.bpe.model
+```
+
+Traducir la última sesión de la base y medir la latencia:
+
+```bash
+python -m src.spikes.f3_translate
+```
+
+Traducir en vivo mientras se captura:
+
+```bash
+python -m src.spikes.f1_transcribe --seconds 60 --traducir es
+```
+
 ## Pedirle algo al LLM (F2)
 
 ```bash
@@ -89,7 +112,7 @@ spike avisa cuál eligió antes de enviar nada.
 
 ## Estado
 
-**F0, F1 y F2 cerrados.** Falta traducción local (F3), captura nativa (F4) y UI (F5).
+**F0, F1, F2 y F3 cerrados.** Falta captura nativa (F4) y UI (F5).
 
 ## Licencia
 
