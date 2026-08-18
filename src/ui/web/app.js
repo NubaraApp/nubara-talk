@@ -235,6 +235,8 @@ el("toggle").onclick = () => {
     lang_mic: el("lang-mic").value,
     lang_sys: el("lang-sys").value,
     traducir: el("traducir").checked ? "es" : null,
+    // "tap" no es un dispositivo: lo resuelve make_source() del lado de Python.
+    sys_device: el("nativo").checked ? "tap" : null,
   });
 };
 

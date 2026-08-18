@@ -131,45 +131,33 @@ macOS en español nombra los dispositivos integrados en español:
 `find_device()` busca por subcadena y sin distinguir mayúsculas ni acentos, así que
 `--mic-device "macbook"` alcanza.
 
-## Captura nativa (F4) — estado y qué falta
+## Captura nativa (F4) — cómo usarla
 
-`SwiftTapSource` usa Core Audio Process Taps: no necesita BlackHole ni Multi-Output. El
-helper se compila solo la primera vez, en `build/granola-tap.app`.
-
-```bash
-python -m src.spikes.f0_capture --seconds 12 --sys-device tap
-```
-
-**Hoy la pista `sys` sale en silencio absoluto.** No es un bug de la cañería: el tap se
-crea, el dispositivo agregado expone su canal de entrada, el formato es float32 mono a
-48 kHz y los callbacks llegan cada 512 frames. Lo que llega es cero.
-
-Es el comportamiento del sistema cuando falta el permiso de grabación de audio: no
-devuelve un error, devuelve silencio. Y el permiso no se puede pedir desde acá, porque
-`tccutil` no reconoce el bundle:
-
-```
-tccutil: No such bundle identifier "com.granola-local.tap"
-```
-
-El sistema sólo le da permiso a una app que conozca. Un binario firmado ad-hoc dentro de
-`build/` no lo es.
-
-**Para probarlo vos:**
-
-1. Corré el spike desde tu propia terminal (no desde un agente): si aparece un diálogo de
-   permiso, aceptalo.
-2. Mirá **Configuración del Sistema > Privacidad y seguridad > Grabación de pantalla y
-   audio del sistema**. Si aparece `granola-local tap`, activalo y volvé a correr.
-3. Si no aparece, copiá la app a `/Applications` y abrila una vez para que el sistema la
-   registre:
+El process tap de Core Audio no necesita BlackHole ni Multi-Output. **Sólo funciona
+lanzando la app desde `/Applications`.**
 
 ```bash
-cp -R build/granola-tap.app /Applications/
-open -a /Applications/granola-tap.app
+cd ~/Documents/granola-local
+export PATH="$HOME/.cargo/bin:$PATH"
+npx tauri build
+codesign --force --deep --sign - --identifier com.granola-local.app \
+  src-tauri/target/release/bundle/macos/granola-local.app
+cp -R src-tauri/target/release/bundle/macos/granola-local.app /Applications/
+open -a /Applications/granola-local.app
 ```
 
-Si después de eso sigue en silencio, la salida es empaquetar todo en la app de F5 (Tauri
-ya produce un bundle firmado) y pedir el permiso desde ahí. El código del tap no cambia.
+En la ventana, tildá **captura nativa** antes de darle a Empezar.
 
-Mientras tanto, el camino de BlackHole sigue siendo el que funciona.
+**Por qué tiene que ser desde `/Applications`.** El permiso de grabación de audio se le da
+a una app que el sistema reconozca. El mismo binario del helper devuelve silencio absoluto
+lanzado desde una terminal y audio real lanzado por la app firmada. Si aparece un diálogo
+de permiso la primera vez, aceptalo; si no, mirá **Configuración del Sistema > Privacidad
+y seguridad > Grabación de pantalla y audio del sistema**.
+
+**Si recompilás la app, el permiso se puede perder.** La firma es ad-hoc: al cambiar el
+binario cambia el hash, y el sistema la trata como otra app. Volvé a aceptar el permiso.
+
+Los spikes de línea de comandos (`--sys-device tap`) siguen en silencio a propósito: no
+tienen identidad de app. Para la terminal, usá BlackHole.
+
+Para las corridas desde terminal, el camino de BlackHole sigue siendo el que funciona.

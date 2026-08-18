@@ -28,6 +28,16 @@ fn project_root() -> PathBuf {
             return parent.to_path_buf();
         }
     }
+    // Empaquetado, el cwd es "/" y no hay nada que buscar. La ruta del repo queda
+    // grabada al compilar: alcanza para una app personal, y es lo que permite correrla
+    // desde /Applications, que es donde el sistema la reconoce para darle permisos.
+    // Se puede pisar con GRANOLA_ROOT.
+    let compiled = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    if let Some(parent) = compiled.parent() {
+        if parent.join("src/ui/server.py").exists() {
+            return parent.to_path_buf();
+        }
+    }
     cwd
 }
 

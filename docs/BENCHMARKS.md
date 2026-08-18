@@ -127,7 +127,7 @@ Quarter" (mic, con el audio filtrado por el aire) sale como "Los ingresos vinier
 jefe del barrio de Planteys". NLLB no tiene forma de saber que eso está mal. La pista
 `sys`, que toma el audio limpio por BlackHole, no tiene ese problema.
 
-## F4 — captura nativa (no pasa)
+## F4 — captura nativa
 
 Corrida de 12 s con `--sys-device tap`, salida por defecto en las bocinas, hablando por
 `say` mientras grababa.
@@ -182,3 +182,21 @@ lleva más contexto.
 **Lo que no está medido.** No hay ninguna medición de la UI con una reunión de verdad, ni
 del comportamiento de la lista después de cientos de turnos: el DOM crece sin recortar.
 Con reuniones largas eso hay que mirarlo.
+
+### F4, segunda vuelta: con la app instalada
+
+Lanzando `granola-local.app` desde `/Applications` y tildando *captura nativa*, el tap
+entrega audio. Tres frases por `say`, tres turnos transcritos en la pista `sys`:
+
+```
+* sys  Good morning everyone, thanks for joining.
+* sys  The enterprise segment dropped most of that grout.
+* sys  Can you send me the Migration Timeline today?
+```
+
+Sin BlackHole en el camino. La prueba de control: el **mismo** binario del helper, con el
+mismo código, corrido desde la terminal en la misma sesión da RMS 0.00000. La única
+variable es quién lo lanza.
+
+Lo que no volví a medir: el desfase de duración entre pistas con el tap. La última medición
+daba 5,98 % y fue sobre audio en silencio. Queda abierto.

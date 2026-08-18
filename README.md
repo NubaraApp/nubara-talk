@@ -128,8 +128,8 @@ spike avisa cuál eligió antes de enviar nada.
 
 ## Estado
 
-**F0, F1, F2, F3 y F5 cerrados.** F4 (captura nativa) está escrito y bloqueado por el
-permiso de grabación de audio del sistema: ver `docs/SETUP_AUDIO.md`.
+**Las seis fases cerradas.** F4 (captura nativa, sin BlackHole) funciona lanzando la app
+desde `/Applications`: ver `docs/SETUP_AUDIO.md`.
 
 ## Licencia
 

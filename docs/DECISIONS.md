@@ -285,3 +285,19 @@ cualquiera en la misma red WiFi podría leerla. No hay autenticación porque no 
 el socket no es alcanzable desde afuera de la máquina.
 
 **Costo aceptado:** no se puede abrir la UI desde otro dispositivo. Es intencional.
+
+---
+
+## ADR-021 — La captura nativa sólo funciona lanzada desde la app
+
+**Decisión:** el process tap de F4 se usa desde `granola-local.app` instalada en
+`/Applications`. Desde una terminal no se usa: se deja `BlackHoleSource`.
+
+**Motivo:** no es una preferencia, es cómo funciona el permiso. El mismo binario del
+helper, con el mismo código, devuelve silencio absoluto lanzado desde la terminal y audio
+real lanzado por la app. Lo que cambia es a quién le atribuye el sistema la captura: el
+`.app` firmado tiene identidad y permiso; un binario suelto en `build/` no.
+
+**Costo aceptado:** los spikes de línea de comandos no pueden probar el tap. Para eso está
+la casilla *captura nativa* en la ventana. Y la app queda firmada ad-hoc, así que el
+permiso se pierde si se recompila y cambia el hash.

@@ -80,17 +80,17 @@ de terceros, sin Multi-Output, sin que el usuario pueda romper el ruteo por acci
 
 **Criterios de salida:**
 
-- [ ] Los mismos criterios de F0, pero sin BlackHole instalado — **bloqueado**: el tap
-      entrega bloques del tamaño correcto pero en silencio absoluto, porque el sistema no
-      le dio permiso de grabación de audio al helper. Ver docs/SETUP_AUDIO.md.
-- [ ] Desfase de duración < 2 % — da 5,98 %: arrancar y parar un subproceso cuesta más
-      que abrir un `InputStream`. Sin audio real no vale la pena afinarlo.
+- [x] Captura del audio del sistema sin BlackHole — funciona, con una condición: hay
+      que lanzar la app desde `/Applications`. El tap transcribió 3 de 3 turnos. El mismo
+      helper corrido desde la terminal sigue en silencio: es el permiso, no el código.
+      Ver ADR-021.
+- [ ] Desfase de duración < 2 % — medido antes de tener audio daba 5,98 %: arrancar y
+      parar un subproceso cuesta más que abrir un `InputStream`. Sin volver a medirlo
+      con audio real, queda abierto.
 - [x] Ni un cambio fuera de `src/audio/` — los spikes llaman a `make_source()` y no
       nombran ninguna clase concreta. Cambiar de backend es un argumento, no una edición.
 
-**Lo que sí quedó verificado:** el tap se crea, su UID coincide con el que se le pasa al
-dispositivo agregado, el agregado expone 1 canal de entrada, el formato es float32 mono a
-48 kHz y los callbacks llegan cada 512 frames. La cañería está bien; falta el permiso.
+**Cómo usarlo:** tildar *captura nativa* en la ventana. BlackHole deja de hacer falta.
 
 ## F5 — UI
 
