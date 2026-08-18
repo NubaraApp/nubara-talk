@@ -56,7 +56,12 @@ class TrackResult:
 
     @property
     def lost_samples(self) -> int:
-        """Muestras que deberían haber llegado y no llegaron."""
+        """Muestras que faltan respecto del tiempo de pared.
+
+        En una corrida limpia esto da ~1 bloque (BLOCK_MS): es la latencia de arranque
+        del stream y la cola del remuestreador, no audio perdido. Preocupa cuando crece
+        muy por encima de eso, o cuando difiere mucho entre las dos pistas.
+        """
         return max(0, int(round(self.elapsed * TARGET_SR)) - len(self.pcm))
 
 
@@ -97,21 +102,35 @@ def capture(
         for src in sources
     ]
 
-    print(f"\nGrabando {seconds:.0f} s. Poné música Y hablá al micrófono.")
-    started = time.monotonic()
+    # Abrir los dos dispositivos antes de arrancar ninguno: así el escalón entre pistas
+    # es de microsegundos y no de los ~40 ms que cuesta abrir un InputStream.
     for src in sources:
-        src.start()
+        src.open()
     for thread in readers:
         thread.start()
+
+    print(f"\nGrabando {seconds:.0f} s. Poné música Y hablá al micrófono.")
+    for src in sources:
+        src.start()
+    started = time.monotonic()
 
     try:
         time.sleep(seconds)
     except KeyboardInterrupt:
         print("\nInterrumpido.")
 
-    for src in sources:
-        src.stop()
+    # El reloj se corta antes de parar: así `muestras perdidas` mide dropouts reales y
+    # no el costo de abrir y cerrar los streams.
     elapsed = time.monotonic() - started
+
+    # Parar en secuencia escalona las pistas: cerrar un InputStream bloquea ~180 ms y
+    # la otra pista sigue grabando mientras tanto. Se cierran en paralelo.
+    stoppers = [threading.Thread(target=src.stop) for src in sources]
+    for thread in stoppers:
+        thread.start()
+    for thread in stoppers:
+        thread.join(timeout=5.0)
+
     for thread in readers:
         thread.join(timeout=2.0)
 
@@ -153,13 +172,13 @@ def report(results: list[TrackResult], seconds: float) -> bool:
         print(f"    RMS               {res.rms:8.5f}")
         print(f"    muestras          {len(res.pcm):8d}")
         lost_s = res.lost_samples / TARGET_SR
-        print(f"    muestras perdidas {res.lost_samples:8d}   ({lost_s:.3f} s)")
+        print(f"    faltan vs pared   {res.lost_samples:8d}   ({lost_s:.3f} s, ~1 bloque ok)")
         print(f"    overflows         {res.overflows:8d}")
         print(f"    bloques a la cola {res.dropped_blocks:8d}   (descartados por cola llena)")
         print(f"    archivo           {res.path}")
 
     dur_skew = abs(mic.duration - sysx.duration) / max(mic.duration, sysx.duration, 1e-9)
-    overflow_budget = OVERFLOWS_PER_20S * seconds / 20.0
+    overflow_budget = max(OVERFLOWS_PER_20S * seconds / 20.0, 1.0)
 
     ts_skew: float | None = None
     if None not in (mic.first_ts, sysx.first_ts, mic.last_ts, sysx.last_ts):
@@ -184,8 +203,8 @@ def report(results: list[TrackResult], seconds: float) -> bool:
             f"mic={mic.rms:.5f} sys={sysx.rms:.5f}",
         ),
         (
-            f"Overflows < {overflow_budget:.0f}",
-            (mic.overflows + sysx.overflows) < max(overflow_budget, 1.0),
+            f"Overflows < {overflow_budget:.1f}",
+            (mic.overflows + sysx.overflows) < overflow_budget,
             f"mic={mic.overflows} sys={sysx.overflows}",
         ),
         (

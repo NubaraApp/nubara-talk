@@ -185,9 +185,16 @@ class BlackHoleSource(AudioSource):
         except queue.Full:
             self.dropped_blocks += 1
 
-    def start(self) -> None:
+    def open(self) -> None:
+        """Reserva el dispositivo y arma el remuestreador, sin empezar a capturar.
+
+        Abrir un InputStream cuesta decenas de milisegundos. Si eso pasara dentro de
+        start(), las dos pistas arrancarían escalonadas y la diferencia de duración
+        entre ellas sería ese escalón. Separar open() de start() deja el escalón en
+        microsegundos. Ver el criterio de skew < 2 % en docs/PLAN.md.
+        """
         with self._lock:
-            if self._running:
+            if self._stream is not None:
                 return
 
             self._resampler = soxr.ResampleStream(
@@ -201,11 +208,9 @@ class BlackHoleSource(AudioSource):
                 dtype="float32",
                 callback=self._callback,
             )
-            self._stream.start()
-            self._running = True
 
         log.info(
-            "pista %s: %s @ %d Hz, %d ch, bloques de %d muestras",
+            "pista %s abierta: %s @ %d Hz, %d ch, bloques de %d muestras",
             self._track,
             self._name,
             self._device_sr,
@@ -213,9 +218,22 @@ class BlackHoleSource(AudioSource):
             self._blocksize,
         )
 
+    def start(self) -> None:
+        self.open()
+        with self._lock:
+            if self._running:
+                return
+            assert self._stream is not None
+            self._stream.start()
+            self._running = True
+
+        log.debug("pista %s: capturando", self._track)
+
     def stop(self) -> None:
         with self._lock:
-            if not self._running:
+            # Un stream abierto pero nunca arrancado igual hay que cerrarlo: si no,
+            # el dispositivo queda reservado hasta que muera el proceso.
+            if not self._running and self._stream is None:
                 return
             self._running = False
 

@@ -46,6 +46,14 @@ class AudioSource(ABC):
     @abstractmethod
     def is_running(self) -> bool: ...
 
+    def open(self) -> None:
+        """Reserva el dispositivo sin empezar a capturar.
+
+        Opcional: start() lo llama solo si hace falta. Existe para poder abrir las dos
+        pistas antes de arrancar ninguna, y que no queden escalonadas por el costo de
+        abrir el dispositivo. Por defecto no hace nada.
+        """
+
     @abstractmethod
     def start(self) -> None:
         """Arranca la captura. Volver a llamarlo estando corriendo no hace nada."""
