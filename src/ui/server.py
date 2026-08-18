@@ -360,7 +360,10 @@ class Hub:
         )
         prompt = template.render(fragmento=fragmento, contexto=contexto, idioma=idioma)
         cli = bridge.LlmCli(spec, timeout_s=self._prompts.timeout_s)
-        response = cli.run(prompt)
+        # Los trozos salen por el canal de broadcast a medida que el modelo escribe: la
+        # respuesta completa tarda lo mismo, pero se empieza a leer varios segundos antes.
+        self.emit("answer_start", cli=spec.id, local=spec.local, idioma=idioma)
+        response = cli.run(prompt, on_chunk=lambda piece: self.emit("answer_chunk", text=piece))
         return {
             "text": response.text,
             "idioma": idioma,

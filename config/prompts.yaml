@@ -12,9 +12,25 @@ version: 1
 cli:
   # Se prueban en orden. Se usa la primera que esté instalada y responda.
   candidatos:
+    # El orden importa: se usa la primera instalada. Local primero, por privacidad.
+    #
+    # --think=false apaga el razonamiento del modelo. Es la diferencia entre 4.10 s y
+    # 0.46 s por respuesta, medido en este equipo con la misma pregunta. Ojo con la
+    # forma: `--think false` NO lo apaga, hay que escribirlo con el signo igual.
+    #
+    # --keepalive deja el modelo en memoria entre preguntas. Sin esto ollama lo descarga
+    # a los 5 minutos y la primera pregunta después de una pausa paga la recarga.
     - id: ollama
-      comando: [ollama, run, gemma4, --hidethinking, --nowordwrap]
+      comando: [ollama, run, gemma4, --think=false, --hidethinking, --nowordwrap,
+                --keepalive, 30m]
       local: true
+
+    # El mismo modelo, razonando antes de contestar. Diez veces más lento; se elige a
+    # mano desde la ventana cuando la respuesta importa más que el tiempo.
+    - id: ollama-razonando
+      comando: [ollama, run, gemma4, --hidethinking, --nowordwrap, --keepalive, 30m]
+      local: true
+
     - id: claude
       comando: [claude, -p]
       local: false

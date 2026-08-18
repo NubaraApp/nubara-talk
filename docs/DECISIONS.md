@@ -376,3 +376,43 @@ puente es hijo de la burbuja, así que estando encima de él la burbuja sigue en
 **Costo aceptado:** esa franja de 14 px pertenece a la burbuja de abajo, así que la de
 arriba pierde el `:hover` un poco antes de lo que el ojo espera. Es el hueco entre las
 dos, donde no hay nada que tocar.
+
+---
+
+## ADR-026 — El modelo contesta sin razonar, salvo que se le pida
+
+**Decisión:** el candidato `ollama` por defecto lleva `--think=false`. Queda un segundo
+candidato, `ollama-razonando`, con el razonamiento prendido, elegible desde la ventana.
+
+**Motivo:** medido con la misma pregunta y el modelo ya cargado, **4.10 s razonando
+contra 0.46 s sin razonar**. Casi todo el tiempo de espera era razonamiento que
+`--hidethinking` escondía: se generaba igual, y había que esperarlo igual. En una reunión,
+cuatro segundos con la ventana diciendo "pensando…" es una eternidad.
+
+Ojo con la forma del flag: `--think false` **no** lo apaga — ollama lo interpreta como
+otra cosa y termina imprimiendo el razonamiento dentro de la respuesta. Hay que escribirlo
+`--think=false`.
+
+**Costo aceptado:** sin razonar las respuestas son más cortas y más planas. Para
+`responder` en medio de una reunión es lo que se quiere; para resumir un tramo largo,
+puede no serlo. Por eso el otro candidato sigue ahí, a un clic.
+
+---
+
+## ADR-027 — La respuesta se escribe a medida que sale
+
+**Decisión:** `LlmCli.run()` acepta un `on_chunk` y el sidecar reenvía cada trozo por el
+WebSocket. La ventana pinta el texto mientras el modelo escribe.
+
+**Motivo:** con respuestas largas o con una CLI remota, esperar en silencio a que termine
+se siente roto. Ver aparecer las primeras palabras dice que algo está pasando.
+
+**Costo aceptado:** poco, pero conviene ser honesto con cuánto sirve. Con
+`--hidethinking`, ollama no suelta una sola letra hasta terminar de razonar: medido, el
+primer texto llegaba a los 5.4 s de una respuesta de 5.5 s. El streaming no arregla eso
+— lo arregla ADR-026. Donde sí se nota es en respuestas largas y en `claude`.
+
+**Detalle de implementación:** la limpieza de ANSI se hace sobre el texto acumulado y se
+manda el delta, no trozo por trozo. Una secuencia de escape puede quedar partida entre
+dos lecturas del pipe, y limpiando cada trozo por separado quedaría media secuencia
+metida en la respuesta.

@@ -10,7 +10,9 @@ import logging
 import re
 import shutil
 import subprocess
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from src.llm.prompts import CliSpec
@@ -56,12 +58,15 @@ class LlmCli:
         self.spec = spec
         self.timeout_s = timeout_s
 
-    def run(self, prompt: str) -> LlmResponse:
+    def run(self, prompt: str, on_chunk: Callable[[str], None] | None = None) -> LlmResponse:
         """Manda el prompt por stdin y devuelve la respuesta limpia.
 
         Por stdin y no por argv: un fragmento de reunión largo excede el límite de tamaño
         de los argumentos, y pasarlo como argumento obliga a preocuparse por el quoting.
         Nunca con `shell=True`.
+
+        Si se pasa `on_chunk`, se llama con cada trozo nuevo de texto a medida que sale.
+        La respuesta completa tarda lo mismo, pero se puede empezar a leer antes.
         """
         if not available(self.spec):
             raise LlmError(
@@ -70,24 +75,55 @@ class LlmCli:
             )
 
         t0 = time.monotonic()
+        proc = subprocess.Popen(
+            list(self.spec.command),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        # stderr se drena en un hilo: si el proceso lo llena y nadie lee, se traba.
+        errors: list[str] = []
+        drain = threading.Thread(target=lambda: errors.append(proc.stderr.read()), daemon=True)
+        drain.start()
+
+        raw, shown = "", ""
         try:
-            proc = subprocess.run(
-                list(self.spec.command),
-                input=prompt,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_s,
-                check=False,
-            )
+            proc.stdin.write(prompt)
+            proc.stdin.close()
+
+            deadline = t0 + self.timeout_s
+            while True:
+                piece = proc.stdout.read(64)
+                if not piece:
+                    break
+                raw += piece
+                if on_chunk is not None:
+                    # Limpiar sobre el acumulado y mandar sólo lo nuevo: una secuencia
+                    # ANSI puede quedar partida entre dos lecturas, y limpiar cada trozo
+                    # por separado dejaría la mitad de la secuencia en el texto.
+                    clean = _clean(raw)
+                    if len(clean) > len(shown):
+                        on_chunk(clean[len(shown):])
+                        shown = clean
+                if time.monotonic() > deadline:
+                    raise subprocess.TimeoutExpired(self.spec.command[0], self.timeout_s)
+
+            proc.wait(timeout=max(1.0, deadline - time.monotonic()))
         except subprocess.TimeoutExpired as exc:
+            proc.kill()
+            proc.wait(timeout=5)
             raise LlmError(
                 f"{self.spec.id}: no respondió en {self.timeout_s:.0f} s. "
                 f"Subí cli.timeout_s en config/prompts.yaml, o usá un modelo más chico."
             ) from exc
-        elapsed = time.monotonic() - t0
+        finally:
+            drain.join(timeout=2)
 
-        out = _clean(proc.stdout)
-        err = _clean(proc.stderr)
+        elapsed = time.monotonic() - t0
+        out = _clean(raw)
+        err = _clean("".join(x for x in errors if x))
         blob = f"{out}\n{err}".lower()
 
         if any(hint in blob for hint in _AUTH_HINTS):

@@ -46,6 +46,8 @@ function handle(msg) {
     case "sessions": return onSessions(msg.rows);
     case "transcript": return onTranscript(msg);
     case "search_result": return onResults(msg.rows);
+    case "answer_start": return onAnswerStart(msg);
+    case "answer_chunk": return onAnswerChunk(msg);
     case "answer": return onAnswer(msg);
     case "error": {
       const answer = el("answer");
@@ -277,19 +279,40 @@ function askKeys(template, keys) {
   });
 }
 
-function onAnswer(msg) {
-  const answer = el("answer");
-  answer.classList.remove("pending");
-  answer.innerHTML = "";
-  const meta = document.createElement("div");
-  meta.className = "meta";
+function answerMeta(msg) {
   const who = msg.local
     ? `${msg.cli} · local`
     : `<span class="remote">${msg.cli} · remota — el texto salió de tu máquina</span>`;
-  meta.innerHTML = `${who} · en ${msg.idioma} · ${msg.elapsed.toFixed(1)}s`;
-  const body = document.createElement("div");
-  body.textContent = msg.text;
-  answer.append(meta, body);
+  const time = msg.elapsed === undefined ? "escribiendo…" : `${msg.elapsed.toFixed(1)}s`;
+  return `${who} · en ${msg.idioma} · ${time}`;
+}
+
+function onAnswerStart(msg) {
+  const answer = el("answer");
+  answer.classList.remove("pending");
+  answer.innerHTML = '<div class="meta"></div><div class="body"></div>';
+  answer.querySelector(".meta").innerHTML = answerMeta(msg);
+}
+
+function onAnswerChunk(msg) {
+  const body = el("answer").querySelector(".body");
+  if (!body) return;
+  body.textContent += msg.text;
+}
+
+function onAnswer(msg) {
+  const answer = el("answer");
+  answer.classList.remove("pending");
+  // Si llegaron trozos, el texto ya está pintado: sólo se completa el encabezado con
+  // el tiempo final. Si no llegó ninguno, se pinta todo de una.
+  const body = answer.querySelector(".body");
+  if (body && body.textContent) {
+    answer.querySelector(".meta").innerHTML = answerMeta(msg);
+    return;
+  }
+  answer.innerHTML = '<div class="meta"></div><div class="body"></div>';
+  answer.querySelector(".meta").innerHTML = answerMeta(msg);
+  answer.querySelector(".body").textContent = msg.text;
 }
 
 // ---------------------------------------------------------------- búsqueda
@@ -397,5 +420,84 @@ document.addEventListener("click", (event) => {
   const menu = el("settings");
   if (menu.open && !menu.contains(event.target)) menu.open = false;
 });
+
+// ---------------------------------------------------------------- ancho del panel
+
+const ASIDE_DEFAULT = 330;
+const ASIDE_MIN = 240;
+const ASIDE_MAX_RATIO = 0.62; // el panel nunca se come la transcripción entera
+
+function currentAside() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--aside");
+  return parseInt(raw, 10) || ASIDE_DEFAULT;
+}
+
+/** Aplica el ancho, acotado a la ventana. No guarda: eso lo decide quien llama. */
+function applyAside(px) {
+  // Durante un reflow la ventana puede reportar ancho 0. Acotar contra eso daría el
+  // mínimo y, si además se guardara, se perdería el ancho que eligió el usuario.
+  const room = window.innerWidth || 0;
+  const max = room > 400 ? Math.round(room * ASIDE_MAX_RATIO) : Infinity;
+  const width = Math.round(Math.min(Math.max(px, ASIDE_MIN), max));
+  document.documentElement.style.setProperty("--aside", `${width}px`);
+  return width;
+}
+
+/** Aplica y recuerda. Sólo para cambios que pidió el usuario. */
+function setAside(px) {
+  const width = applyAside(px);
+  try {
+    localStorage.setItem("aside", String(width));
+  } catch (error) {
+    // Modo privado o storage lleno: el ancho vale para esta sesión y nada más.
+  }
+  return width;
+}
+
+(function setupSplitter() {
+  const splitter = el("splitter");
+  const stored = Number(localStorage.getItem("aside"));
+  applyAside(stored > 0 ? stored : ASIDE_DEFAULT);
+
+  const widthFrom = (clientX) => window.innerWidth - clientX - 3;
+
+  splitter.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    // Capturar el puntero: sin esto, arrastrar rápido lo pierde apenas sale del
+    // separador, que tiene 7 px de ancho.
+    splitter.setPointerCapture(event.pointerId);
+    splitter.classList.add("dragging");
+    document.body.classList.add("resizing");
+
+    const move = (moveEvent) => setAside(widthFrom(moveEvent.clientX));
+    const up = () => {
+      splitter.classList.remove("dragging");
+      document.body.classList.remove("resizing");
+      splitter.removeEventListener("pointermove", move);
+      splitter.removeEventListener("pointerup", up);
+      splitter.removeEventListener("pointercancel", up);
+    };
+    splitter.addEventListener("pointermove", move);
+    splitter.addEventListener("pointerup", up);
+    splitter.addEventListener("pointercancel", up);
+  });
+
+  splitter.addEventListener("dblclick", () => setAside(ASIDE_DEFAULT));
+
+  splitter.addEventListener("keydown", (event) => {
+    const step = event.shiftKey ? 40 : 12;
+    if (event.key === "ArrowLeft") setAside(currentAside() + step);
+    else if (event.key === "ArrowRight") setAside(currentAside() - step);
+    else return;
+    event.preventDefault();
+  });
+
+  // Achicar la ventana acota el panel, pero no cambia el ancho elegido: al volver a
+  // agrandarla se recupera.
+  window.addEventListener("resize", () => {
+    const stored = Number(localStorage.getItem("aside")) || currentAside();
+    applyAside(stored);
+  });
+})();
 
 connect();

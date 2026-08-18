@@ -109,4 +109,6 @@ Tauri con sidecar Python. Se comunican por WebSocket local.
 - [x] Traducción en vivo debajo de cada burbuja
 - [x] Acciones al pasar el mouse por una frase, sin ir a ningún panel
 - [x] La respuesta sale en el idioma del fragmento
+- [x] Ancho del panel ajustable, y se recuerda
+- [x] La respuesta se escribe a medida que sale
 - [x] Ventana nativa en Tauri que lanza y mata el sidecar

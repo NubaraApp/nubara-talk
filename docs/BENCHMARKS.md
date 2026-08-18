@@ -214,3 +214,34 @@ El ruteo de idioma funciona. Lo que no funcionó bien fue la transcripción del 
 `say -v Eddy` por los parlantes y de vuelta por el micrófono salió como "Me pudez monder
 el chronograma democracia en anties delvines". Es una limitación de la prueba, no del
 ruteo — el audio sintético reproducido y recapturado por el aire es el peor caso posible.
+
+## Latencia de la respuesta del LLM
+
+Misma pregunta, `ollama run gemma4`, modelo ya cargado en GPU. Mejor de dos corridas.
+
+| Configuración | Tiempo |
+|---|---|
+| `--hidethinking` (lo que había) | 4.10 s |
+| `--think=false` | **0.46 s** |
+| `--think false` (sin el `=`) | 4.7 s, y el razonamiento sale dentro de la respuesta |
+
+Y el costo de tener el modelo descargado de memoria, con una pregunta corta:
+
+| | Tiempo |
+|---|---|
+| Primera llamada tras descargarlo | 4.15 s |
+| Siguiente, ya cargado | 0.50 s |
+
+De ahí salen las dos medidas: `--think=false` por defecto y `--keepalive 30m`.
+
+De punta a punta desde la UI, contra el sidecar, con la misma pregunta:
+
+| | Antes | Ahora |
+|---|---|---|
+| Modelo descargado | 9.73 s | — |
+| Modelo cargado | 5.55 s | **0.42 s** |
+
+El streaming de la respuesta se agregó igual, pero conviene ser honesto: con
+`--hidethinking` el primer texto llegaba a los 5.42 s de una respuesta de 5.55 s, porque
+ollama no suelta nada hasta terminar de razonar. Lo que bajó la espera fue apagar el
+razonamiento, no el streaming.
