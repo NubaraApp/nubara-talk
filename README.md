@@ -35,7 +35,13 @@ Ver [docs/PLAN.md](docs/PLAN.md).
 ./scripts/setup.sh
 ```
 
-Luego seguí [docs/SETUP_AUDIO.md](docs/SETUP_AUDIO.md) para configurar el ruteo de audio.
+Para el ruteo de audio, el helper crea el Multi-Output Device sin pasar por la GUI:
+
+```bash
+swiftc -O scripts/make_multioutput.swift -o /tmp/make_multioutput && /tmp/make_multioutput
+```
+
+Detalles y pasos manuales en [docs/SETUP_AUDIO.md](docs/SETUP_AUDIO.md).
 
 ## Correr el spike F0
 
