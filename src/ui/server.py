@@ -64,6 +64,23 @@ LANG_NAMES = {
 }
 
 
+# Lo que el usuario escribe en el cuadro de instrucciones entra en cada prompt. Se
+# recorta: un prompt gigante hace lento al modelo y no mejora la respuesta.
+MAX_INSTRUCCIONES = 2000
+
+
+def format_instructions(text: str | None) -> str:
+    """Prepara el bloque de instrucciones, o devuelve vacío.
+
+    Va formateado desde acá y no desde la plantilla para que, sin instrucciones, el
+    prompt no arranque con un encabezado colgando de una sección vacía.
+    """
+    clean = (text or "").strip()[:MAX_INSTRUCCIONES]
+    if not clean:
+        return ""
+    return f"Quien te pregunta te da este contexto y estas instrucciones:\n{clean}\n"
+
+
 def _row(row: sqlite3.Row) -> dict[str, Any]:
     return {k: row[k] for k in row.keys()}
 
@@ -387,6 +404,7 @@ class Hub:
             contexto=contexto,
             idioma=idioma,
             respuesta=payload.get("respuesta", ""),
+            instrucciones=format_instructions(payload.get("instrucciones")),
         )
         cli = bridge.LlmCli(spec, timeout_s=self._prompts.timeout_s)
         # Los trozos salen por el canal de broadcast a medida que el modelo escribe: la

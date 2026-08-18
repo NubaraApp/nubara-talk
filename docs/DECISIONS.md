@@ -485,3 +485,29 @@ Este panel no es una bandeja: es una conversación que se lee de arriba hacia ab
 
 **Costo aceptado:** con muchas respuestas hay que bajar para ver la última. Por eso el
 panel sigue el final solo, y deja de seguirlo si el usuario subió a releer algo.
+
+---
+
+## ADR-032 — Un cuadro de instrucciones que viaja en cada prompt
+
+**Decisión:** un `textarea` en la ventana con quién es el usuario, en qué situación está y
+cómo quiere que le contesten. Va como `{instrucciones}` en `responder`, `ampliar`,
+`aclarar` y `resumir`. Se guarda en la máquina, no en la base.
+
+**Motivo:** el modelo sabe qué se dijo, pero no quién sos ni qué te estás jugando. La
+misma frase pide respuestas muy distintas según si el que pregunta es un cliente enojado
+o un compañero de equipo. Medido con `We should also discuss the migration timeline`:
+
+- sin instrucciones: *"We don't have any immediate concerns regarding the migration timeline."*
+- con "cliente que ya se quejó dos veces, no prometas fechas, tono firme pero
+  conciliador": *"We understand your concern... We are actively managing this process with
+  a focus on stability and thorough testing."*
+
+**Decisiones de detalle.** El bloque se arma en el servidor, no en la plantilla: sin
+instrucciones, la plantilla dejaría un encabezado colgando de una sección vacía. Se
+recorta a 2000 caracteres, porque un prompt gigante hace más lento al modelo sin mejorar
+la respuesta. Y no va en `traducir_bien`: una traducción no debería cambiar según quién
+la pide.
+
+**Costo aceptado:** se guarda en `localStorage`, así que es una sola instrucción para
+todo, no una por reunión. Si en algún momento hace falta por sesión, va a la base.

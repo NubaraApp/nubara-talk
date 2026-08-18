@@ -18,7 +18,7 @@ DEFAULT_CONFIG = Path("config/prompts.yaml")
 # que falle al cargar el archivo que a mitad de una reunión.
 # `respuesta` es la respuesta corta que ya se dio, para que una plantilla pueda
 # ampliarla en vez de empezar de cero.
-PLACEHOLDERS = frozenset({"fragmento", "contexto", "idioma", "respuesta"})
+PLACEHOLDERS = frozenset({"fragmento", "contexto", "idioma", "respuesta", "instrucciones"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,9 +55,14 @@ class PromptTemplate:
         contexto: str = "",
         idioma: str = "español",
         respuesta: str = "",
+        instrucciones: str = "",
     ) -> str:
         return self.plantilla.format(
-            fragmento=fragmento, contexto=contexto, idioma=idioma, respuesta=respuesta
+            fragmento=fragmento,
+            contexto=contexto,
+            idioma=idioma,
+            respuesta=respuesta,
+            instrucciones=instrucciones,
         )
 
 

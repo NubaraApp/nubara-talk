@@ -38,8 +38,11 @@ cli:
   timeout_s: 120
 
 # Cada plantilla recibe:
-#   {fragmento}  el texto seleccionado de la transcripción
-#   {contexto}   los segmentos previos, para dar contexto
+#   {fragmento}      el texto seleccionado de la transcripción
+#   {contexto}       los segmentos previos, para dar contexto
+#   {instrucciones}  lo que el usuario escribió en el cuadro de la ventana: quién es,
+#                    en qué situación está y cómo quiere que le contesten. Llega ya
+#                    formateado, o vacío; la plantilla sólo tiene que dejarle un renglón
 #   {idioma}     idioma en el que se quiere la salida
 #
 # Cualquier otro marcador entre llaves hace fallar la carga: es un typo, no una feature.
@@ -56,6 +59,7 @@ prompts:
     nombre: Redactar respuesta
     descripcion: Redacta una respuesta a lo que se acaba de decir.
     plantilla: |
+      {instrucciones}
       Contexto de la reunión:
       {contexto}
 
@@ -73,6 +77,7 @@ prompts:
     nombre: Desarrollar la respuesta
     descripcion: Toma la respuesta corta y la desarrolla, con alternativas y por qué.
     plantilla: |
+      {instrucciones}
       Contexto de la reunión:
       {contexto}
 
@@ -106,6 +111,7 @@ prompts:
     nombre: Explicar qué quisieron decir
     descripcion: Desambigua jerga, siglas o una frase confusa.
     plantilla: |
+      {instrucciones}
       Contexto de la reunión:
       {contexto}
 
@@ -119,6 +125,7 @@ prompts:
     nombre: Resumir lo hablado
     descripcion: Resume el tramo seleccionado en puntos.
     plantilla: |
+      {instrucciones}
       Resumí en {idioma}, en tres o cuatro puntos, lo hablado acá:
 
       {fragmento}

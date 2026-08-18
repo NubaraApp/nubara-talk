@@ -335,3 +335,25 @@ aside {
   .splitter { display: none; }
   aside { border-top: 1px solid var(--line-soft); }
 }
+
+/* ------------------------------------------------------------------ instrucciones */
+
+#instrucciones-card summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px;
+}
+#instrucciones-card summary::-webkit-details-marker { display: none; }
+#instrucciones-card summary h2 { margin: 0; }
+#instrucciones-card summary::before {
+  content: "▸"; color: var(--dim); font-size: 10px; transition: transform .12s;
+}
+#instrucciones-card[open] summary::before { transform: rotate(90deg); }
+#instrucciones-card[open] summary { margin-bottom: 10px; }
+
+textarea {
+  width: 100%; resize: vertical; min-height: 64px;
+  font: inherit; font-size: 13px; line-height: 1.45;
+  color: var(--text); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px;
+}
+textarea:focus-visible { outline: 2px solid var(--them); outline-offset: 1px; }
+.hint { margin: 7px 0 0; font-size: 11px; }

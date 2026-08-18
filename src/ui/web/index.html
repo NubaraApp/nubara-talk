@@ -86,6 +86,13 @@
          title="Arrastrá para cambiar el ancho. Doble clic para volver al original."></div>
 
     <aside>
+      <details class="card" id="instrucciones-card">
+        <summary><h2>Instrucciones <span id="instrucciones-estado" class="dim"></span></h2></summary>
+        <textarea id="instrucciones" rows="4"
+          placeholder="Quién sos, en qué reunión estás y cómo querés que te contesten.&#10;Ej: Soy el PM del proyecto. Respondé formal y breve, sin comprometer fechas."></textarea>
+        <p class="dim hint">Va en cada pregunta al LLM. Se guarda en esta máquina.</p>
+      </details>
+
       <section class="card">
         <h2>Respuestas <span id="answers-count" class="dim"></span></h2>
         <div id="answers" class="answers"></div>

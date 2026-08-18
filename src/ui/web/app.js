@@ -275,6 +275,7 @@ function askKeys(template, keys, extra = {}) {
     // En qué idioma leo yo. Es lo que usan traducir, explicar y resumir.
     propio: MY_LANG[el("lang-mic").value] || "español",
     session_id: viewing || sessionId,
+    instrucciones: el("instrucciones").value,
     keys,
     ...extra,
   });
@@ -602,6 +603,31 @@ function setAside(px) {
   }
   return width;
 }
+
+(function setupInstrucciones() {
+  const box = el("instrucciones");
+  const card = el("instrucciones-card");
+  const estado = el("instrucciones-estado");
+
+  const refresh = () => {
+    const chars = box.value.trim().length;
+    estado.textContent = chars ? `(${chars} caracteres)` : "(vacío)";
+  };
+
+  box.value = localStorage.getItem("instrucciones") || "";
+  // Abierto si ya hay algo escrito: si está vacío, no vale la pena que ocupe lugar.
+  card.open = box.value.trim().length > 0;
+  refresh();
+
+  box.addEventListener("input", () => {
+    refresh();
+    try {
+      localStorage.setItem("instrucciones", box.value);
+    } catch (error) {
+      // Sin storage las instrucciones duran lo que dure la ventana.
+    }
+  });
+})();
 
 (function setupAutoAmpliar() {
   const box = el("auto-ampliar");

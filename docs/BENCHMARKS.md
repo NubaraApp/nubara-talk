@@ -259,3 +259,16 @@ sidecar:
 La ampliada devuelve versión completa para decir en voz alta, dos alternativas de tono y
 qué tener en cuenta antes de contestar. Las dos quedan guardadas en `answers`, la segunda
 con `parent_id` apuntando a la primera.
+
+## Efecto de las instrucciones
+
+Misma frase (`Does anyone have concerns about the migration timeline?`), misma plantilla
+`responder`, mismo modelo:
+
+| Instrucciones | Respuesta |
+|---|---|
+| ninguna | We don't have any immediate concerns regarding the migration timeline. |
+| "director de ingeniería, cliente que ya se quejó dos veces por retrasos, no prometas fechas, tono firme pero conciliador" | We understand your concern regarding the migration timeline. We are actively managing this process with a focus on stability and thorough testing to ensure the best possible outcome for all parties. |
+
+Sin instrucciones el modelo niega el problema; con ellas lo reconoce y no compromete
+fechas, que era la instrucción.
