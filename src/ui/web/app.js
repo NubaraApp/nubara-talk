@@ -352,12 +352,27 @@ function answerCard(data) {
   renderAnswerText(card.querySelector(".body"), data.text || "");
   card.dataset.turnos = data.turnos || JSON.stringify(data.keys || []);
   card.dataset.id = data.id || "";
-  // Orden de lectura, no de novedad: la corta arriba y su ampliación justo debajo. Si
-  // la ampliación se agregara arriba, empujaría hacia abajo la respuesta que se está
-  // leyendo mientras crece.
-  el("answers").appendChild(card);
+  card.dataset.parent = data.parent_id || "";
+
+  // Dos órdenes a la vez, porque son dos cosas distintas: lo más nuevo va arriba para no
+  // perderlo, pero una ampliación va pegada debajo de la respuesta que amplía. Si la
+  // ampliación se agregara arriba de todo, empujaría hacia abajo justo el texto que se
+  // está leyendo mientras crece.
+  const box = el("answers");
+  const parent = data.parent_id ? box.querySelector(`[data-id="${data.parent_id}"]`) : null;
+  if (parent) {
+    let anchor = parent;
+    const same = (node) => node && node.dataset.parent === String(data.parent_id);
+    while (same(anchor.nextElementSibling)) {
+      anchor = anchor.nextElementSibling;
+    }
+    anchor.after(card);
+  } else {
+    box.prepend(card);
+    box.scrollTop = 0;
+  }
+
   el("answers-empty").classList.add("hidden");
-  el("answers").scrollTop = el("answers").scrollHeight;
   return card;
 }
 
@@ -402,12 +417,6 @@ function onAnswerChunk(msg) {
     pendingCard.dataset.streaming = "1";
   }
   body.textContent += msg.text;
-  const box = el("answers");
-  // Sólo seguir el texto si ya se estaba mirando el final: si el usuario subió a
-  // releer una respuesta anterior, no se le mueve la vista.
-  if (box.scrollHeight - box.scrollTop - box.clientHeight < 60) {
-    box.scrollTop = box.scrollHeight;
-  }
 }
 
 function expansionOf(templateId) {
@@ -450,8 +459,8 @@ function onAnswers(msg) {
   const box = el("answers");
   box.innerHTML = "";
   pendingCard = null;
-  // Llegan de la más nueva a la más vieja; se recorren al revés porque las tarjetas
-  // se agregan abajo.
+  // Llegan de la más nueva a la más vieja. Se recorren al revés para que cada
+  // ampliación encuentre a su padre ya puesto y se acomode debajo.
   for (const row of [...msg.rows].reverse()) {
     fillActions(answerCard(row));
   }
@@ -505,7 +514,9 @@ function sessionLabel(row) {
   const today = new Date();
   const sameDay = date.toDateString() === today.toDateString();
   const time = date.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
-  return sameDay ? `Hoy ${time}` : `${date.toLocaleDateString("es", { day: "numeric", month: "short" })} ${time}`;
+  if (sameDay) return `Hoy ${time}`;
+  const day = date.toLocaleDateString("es", { day: "numeric", month: "short" });
+  return `${day} ${time}`;
 }
 
 function onSessions(rows) {

@@ -473,18 +473,22 @@ transcripción automática de lo que se dijo en una reunión, que no es una fuen
 
 ---
 
-## ADR-031 — Las respuestas se apilan en orden de lectura, no de novedad
+## ADR-031 — Las respuestas se agrupan: lo nuevo arriba, la ampliación pegada abajo
 
-**Decisión:** la más vieja arriba, la más nueva abajo, y la ampliación justo debajo de la
-respuesta que amplía. El panel sigue el final sólo si ya se estaba mirando el final.
+**Decisión:** cada pregunta forma un grupo. Los grupos se ordenan del más nuevo al más
+viejo, arriba del todo el último. Dentro de un grupo, la respuesta corta va primero y su
+ampliación pegada debajo.
 
-**Motivo:** la primera versión ponía la más nueva arriba, como una bandeja de entrada.
-Con la ampliación automática eso significaba que, mientras se leía la respuesta corta,
-la larga aparecía encima y la empujaba hacia abajo — justo la que se estaba leyendo.
-Este panel no es una bandeja: es una conversación que se lee de arriba hacia abajo.
+**Motivo:** son dos necesidades que parecen contradecirse y no lo son. Lo último que
+pediste tiene que estar arriba, porque en una reunión no hay tiempo de buscarlo. Pero la
+ampliación no puede aparecer *encima* de la respuesta que amplía: mientras la larga se
+escribe, empujaría hacia abajo justo el texto que se está leyendo.
 
-**Costo aceptado:** con muchas respuestas hay que bajar para ver la última. Por eso el
-panel sigue el final solo, y deja de seguirlo si el usuario subió a releer algo.
+Las dos primeras versiones eligieron una de las dos y perdieron la otra. Agrupar las
+respeta a las dos.
+
+**Costo aceptado:** insertar una tarjeta ya no es "arriba de todo" sino "después del
+padre y de sus hermanas". Son cinco líneas de recorrido y evitan tener que elegir.
 
 ---
 

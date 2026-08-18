@@ -416,6 +416,7 @@ class Hub:
             local=spec.local,
             idioma=idioma,
             fragmento=fragmento,
+            parent_id=payload.get("parent_id"),
         )
         response = cli.run(prompt, on_chunk=lambda piece: self.emit("answer_chunk", text=piece))
 
