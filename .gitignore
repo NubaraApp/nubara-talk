@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ruff_cache/
+.pytest_cache/
+
+# macOS
+.DS_Store
+.AppleDouble
+._*
+
+# Datos y capturas
+data/
+*.wav
+*.sqlite
+*.sqlite3
+*.db
+
+# Modelos descargados
+models/
