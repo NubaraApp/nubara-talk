@@ -30,9 +30,11 @@ from src.llm.prompts import Config as PromptConfig
 from src.llm.prompts import load as load_prompts
 from src.store.db import (
     DEFAULT_DB_PATH,
+    answers_for_session,
     connect,
     create_session,
     end_session,
+    save_answer,
     search,
     transcript,
     update_translation,
@@ -275,6 +277,9 @@ class Hub:
 
     # ------------------------------------------------------------------ consultas
 
+    def answers(self, session_id: str) -> list[dict[str, Any]]:
+        return [_row(r) for r in answers_for_session(self._conn, session_id)]
+
     def sessions(self) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             """
@@ -305,6 +310,9 @@ class Hub:
                     "corto": t.corto,
                     "descripcion": t.descripcion,
                     "idioma": t.idioma,
+                    # Las que amplían algo ya contestado no se ofrecen sueltas: la
+                    # ventana las pone como botón sobre cada respuesta.
+                    "usa_respuesta": t.usa_respuesta,
                 }
                 for t in self._prompts.prompts.values()
             ],
@@ -354,17 +362,56 @@ class Hub:
             f"{SPEAKER.get(r['track'], r['track'])}: {r['text']}" for r in reversed(contexto_rows)
         )
 
-        spec = bridge.pick(self._prompts.candidates, payload.get("cli") or None)
+        # Preferencia explícita de la ventana, si no la de la plantilla, si no la
+        # primera instalada. Una preferencia que no está instalada no puede romper la
+        # llamada: se cae al orden de siempre.
+        spec = None
+        for wanted in (payload.get("cli"), template.cli):
+            if not wanted:
+                continue
+            try:
+                candidate = bridge.pick(self._prompts.candidates, wanted)
+            except bridge.LlmError:
+                continue
+            if bridge.available(candidate):
+                spec = candidate
+                break
+        if spec is None:
+            spec = bridge.pick(self._prompts.candidates)
         idioma = answer_language(
             rows, payload.get("idioma"), template.idioma, payload.get("propio") or "español"
         )
-        prompt = template.render(fragmento=fragmento, contexto=contexto, idioma=idioma)
+        prompt = template.render(
+            fragmento=fragmento,
+            contexto=contexto,
+            idioma=idioma,
+            respuesta=payload.get("respuesta", ""),
+        )
         cli = bridge.LlmCli(spec, timeout_s=self._prompts.timeout_s)
         # Los trozos salen por el canal de broadcast a medida que el modelo escribe: la
         # respuesta completa tarda lo mismo, pero se empieza a leer varios segundos antes.
         self.emit("answer_start", cli=spec.id, local=spec.local, idioma=idioma)
         response = cli.run(prompt, on_chunk=lambda piece: self.emit("answer_chunk", text=piece))
+
+        created_at = time.time()
+        answer_id = save_answer(
+            self._conn,
+            session_id=session_id,
+            created_at=created_at,
+            template=template.id,
+            cli=response.cli_id,
+            local=spec.local,
+            lang=idioma,
+            fragmento=fragmento,
+            turnos=json.dumps(keys),
+            text=response.text,
+            parent_id=payload.get("parent_id"),
+        )
         return {
+            "id": answer_id,
+            "created_at": created_at,
+            "template": template.id,
+            "fragmento": fragmento,
             "text": response.text,
             "idioma": idioma,
             "cli": response.cli_id,
@@ -405,10 +452,22 @@ async def dispatch(hub: Hub, socket: ServerConnection, message: dict[str, Any]) 
     elif kind == "sessions":
         await socket.send(json.dumps({"type": "sessions", "rows": hub.sessions()}))
     elif kind == "transcript":
-        rows = hub.transcript(message["session_id"])
+        session_id = message["session_id"]
+        rows = hub.transcript(session_id)
         await socket.send(
-            json.dumps({"type": "transcript", "session_id": message["session_id"], "rows": rows})
+            json.dumps({"type": "transcript", "session_id": session_id, "rows": rows})
         )
+        # Las respuestas viajan con la transcripción: abrir una sesión vieja tiene que
+        # traer también lo que el LLM había contestado en su momento.
+        await socket.send(
+            json.dumps(
+                {"type": "answers", "session_id": session_id, "rows": hub.answers(session_id)}
+            )
+        )
+    elif kind == "answers":
+        session_id = message.get("session_id") or hub._session_id
+        rows = hub.answers(session_id) if session_id else []
+        await socket.send(json.dumps({"type": "answers", "session_id": session_id, "rows": rows}))
     elif kind == "search":
         rows = hub.search(message.get("q", ""), message.get("session_id"))
         await socket.send(json.dumps({"type": "search_result", "rows": rows}))

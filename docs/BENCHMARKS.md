@@ -245,3 +245,17 @@ El streaming de la respuesta se agregó igual, pero conviene ser honesto: con
 `--hidethinking` el primer texto llegaba a los 5.42 s de una respuesta de 5.55 s, porque
 ollama no suelta nada hasta terminar de razonar. Lo que bajó la espera fue apagar el
 razonamiento, no el streaming.
+
+## Respuesta corta contra ampliada
+
+Misma frase (`Revenue came in ahead of plan this quarter.`), de punta a punta contra el
+sidecar:
+
+| | CLI | Tiempo |
+|---|---|---|
+| `responder` | `ollama` (`--think=false`) | **0.73 s** |
+| `ampliar` | `ollama-razonando` | 14.83 s |
+
+La ampliada devuelve versión completa para decir en voz alta, dos alternativas de tono y
+qué tener en cuenta antes de contestar. Las dos quedan guardadas en `answers`, la segunda
+con `parent_id` apuntando a la primera.

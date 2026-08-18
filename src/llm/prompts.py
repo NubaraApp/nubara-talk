@@ -16,7 +16,9 @@ DEFAULT_CONFIG = Path("config/prompts.yaml")
 
 # Lo único que se le pasa a una plantilla. Cualquier otro marcador es un typo, y es mejor
 # que falle al cargar el archivo que a mitad de una reunión.
-PLACEHOLDERS = frozenset({"fragmento", "contexto", "idioma"})
+# `respuesta` es la respuesta corta que ya se dio, para que una plantilla pueda
+# ampliarla en vez de empezar de cero.
+PLACEHOLDERS = frozenset({"fragmento", "contexto", "idioma", "respuesta"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,9 +33,28 @@ class PromptTemplate:
     # "fragmento" (contestar en el idioma de lo que se dijo) o "propio" (en el idioma
     # en el que leo). Traducir al mismo idioma del original no traduce nada.
     idioma: str = "propio"
+    # CLI preferida para esta plantilla. Si no está instalada, se usa la de siempre.
+    cli: str = ""
 
-    def render(self, fragmento: str, contexto: str = "", idioma: str = "español") -> str:
-        return self.plantilla.format(fragmento=fragmento, contexto=contexto, idioma=idioma)
+    @property
+    def usa_respuesta(self) -> bool:
+        """Si la plantilla necesita una respuesta previa para tener sentido.
+
+        Las que amplían algo ya contestado no se pueden ofrecer sueltas: sin
+        `{respuesta}` el prompt queda con un hueco vacío.
+        """
+        return "{respuesta}" in self.plantilla
+
+    def render(
+        self,
+        fragmento: str,
+        contexto: str = "",
+        idioma: str = "español",
+        respuesta: str = "",
+    ) -> str:
+        return self.plantilla.format(
+            fragmento=fragmento, contexto=contexto, idioma=idioma, respuesta=respuesta
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +102,7 @@ def load(path: Path | str = DEFAULT_CONFIG) -> Config:
             plantilla=entry["plantilla"],
             corto=entry.get("corto") or entry["nombre"],
             idioma=entry.get("idioma", "propio"),
+            cli=entry.get("cli", ""),
         )
 
     for template in prompts.values():

@@ -111,4 +111,6 @@ Tauri con sidecar Python. Se comunican por WebSocket local.
 - [x] La respuesta sale en el idioma del fragmento
 - [x] Ancho del panel ajustable, y se recuerda
 - [x] La respuesta se escribe a medida que sale
+- [x] Respuesta corta inmediata y ampliación a pedido
+- [x] Las respuestas se guardan y se releen; abrir una sesión vieja las trae
 - [x] Ventana nativa en Tauri que lanza y mata el sidecar

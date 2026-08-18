@@ -63,6 +63,30 @@ prompts:
       Redactá una respuesta breve y profesional en {idioma}. Solo la respuesta,
       sin preámbulo ni comentarios sobre la tarea.
 
+  - id: ampliar
+    idioma: fragmento
+    # Acá sí conviene que razone: es la respuesta que se pide cuando hay tiempo.
+    cli: ollama-razonando
+    corto: Ampliar
+    nombre: Desarrollar la respuesta
+    descripcion: Toma la respuesta corta y la desarrolla, con alternativas y por qué.
+    plantilla: |
+      Contexto de la reunión:
+      {contexto}
+
+      Lo que acaban de decir:
+      {fragmento}
+
+      Ya hay una respuesta corta redactada:
+      {respuesta}
+
+      Desarrollala en {idioma}. Dame:
+      1. Una versión más completa de la respuesta, lista para decir en voz alta.
+      2. Dos alternativas con un tono distinto, una frase cada una.
+      3. Qué conviene tener en cuenta antes de contestar, en dos o tres puntos.
+
+      Sin preámbulo ni comentarios sobre la tarea.
+
   - id: traducir_bien
     idioma: propio
     corto: Traducir

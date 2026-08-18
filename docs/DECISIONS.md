@@ -416,3 +416,50 @@ primer texto llegaba a los 5.4 s de una respuesta de 5.5 s. El streaming no arre
 manda el delta, no trozo por trozo. Una secuencia de escape puede quedar partida entre
 dos lecturas del pipe, y limpiando cada trozo por separado quedaría media secuencia
 metida en la respuesta.
+
+---
+
+## ADR-028 — Las respuestas se guardan en la base, no en la pantalla
+
+**Decisión:** tabla `answers` con la respuesta, la CLI que la dio, el idioma, el
+fragmento al que contesta, los turnos elegidos y, si es una ampliación, a qué respuesta
+amplía. La ventana las apila, la más nueva arriba, y al abrir una sesión vieja vienen con
+la transcripción.
+
+**Motivo:** en una reunión uno pide varias seguidas. Que pedir la siguiente borrara la
+anterior hacía perder el hilo justo cuando más se necesita compararlas. Y guardarlas sólo
+en memoria de la ventana significaba perderlas al cerrarla.
+
+**Costo aceptado:** una tabla más y una decisión de retención que todavía no está tomada
+— hoy no se borra nada. Cuando el archivo pese, habrá que decidir.
+
+---
+
+## ADR-029 — Respuesta corta primero, ampliación a pedido
+
+**Decisión:** dos plantillas. `responder` contesta en menos de un segundo con la CLI
+rápida. `ampliar` toma esa respuesta y la desarrolla — versión completa, dos alternativas
+de tono y qué tener en cuenta — usando la CLI que razona.
+
+**Motivo:** son dos necesidades distintas en momentos distintos. Mientras el otro habla
+hace falta algo en pantalla ya, aunque sea corto, para ir pensando. Cuando hay un hueco,
+conviene algo más trabajado. Medido: 0.73 s la corta, 14.83 s la ampliada.
+
+**Implementación:** la plantilla declara `cli: ollama-razonando` y el servidor la usa si
+está instalada; si no, cae a la de siempre en vez de fallar. Y como usa `{respuesta}`,
+la ventana sabe que no puede ofrecerla suelta: aparece como botón sobre cada respuesta
+ya escrita, no en la barra de la frase.
+
+---
+
+## ADR-030 — La ventana pinta el poco markdown que los modelos usan
+
+**Decisión:** negrita, código y viñetas. Nada más.
+
+**Motivo:** la respuesta ampliada viene con `**Full Version**` y listas, y en texto plano
+se lee como ruido. Un renderizador de markdown completo sería una dependencia grande para
+tres marcas.
+
+**Seguridad:** el texto pasa por `escapeHtml` antes de cualquier reemplazo. Lo que
+devuelve el modelo nunca llega al DOM como etiquetas — y ese texto viene de una
+transcripción automática de lo que se dijo en una reunión, que no es una fuente confiable.

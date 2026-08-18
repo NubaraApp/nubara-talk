@@ -43,6 +43,24 @@ CREATE INDEX IF NOT EXISTS idx_segments_session_time ON segments(session_id, t_s
 CREATE UNIQUE INDEX IF NOT EXISTS idx_segments_turn
   ON segments(session_id, track, turn_index);
 
+-- Lo que fue contestando el LLM. Se guardan para poder releerlas: en una reunión uno
+-- pide varias seguidas y perder la anterior al pedir la siguiente es perder el hilo.
+CREATE TABLE IF NOT EXISTS answers (
+  id          INTEGER PRIMARY KEY,
+  session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  created_at  REAL NOT NULL,     -- reloj de pared
+  template    TEXT NOT NULL,
+  cli         TEXT NOT NULL,
+  local       INTEGER NOT NULL,  -- si la CLI corrió en esta máquina
+  lang        TEXT,
+  fragmento   TEXT NOT NULL,     -- lo que se le pasó, para saber a qué contesta
+  turnos      TEXT NOT NULL,     -- JSON con los turnos elegidos, para poder ampliar
+  text        TEXT NOT NULL,
+  parent_id   INTEGER REFERENCES answers(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_answers_session ON answers(session_id, created_at);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS segments_fts USING fts5(
   text,
   text_trad,
@@ -197,3 +215,55 @@ def update_translation(
         {"trad": text_trad, "sid": session_id, "track": track, "idx": turn_index},
     )
     conn.commit()
+
+
+def save_answer(
+    conn: sqlite3.Connection,
+    session_id: str,
+    created_at: float,
+    template: str,
+    cli: str,
+    local: bool,
+    lang: str,
+    fragmento: str,
+    turnos: str,
+    text: str,
+    parent_id: int | None = None,
+) -> int:
+    """Guarda una respuesta y devuelve su id.
+
+    `parent_id` apunta a la respuesta que se amplió, si esta es una ampliación.
+    """
+    cur = conn.execute(
+        """
+        INSERT INTO answers(session_id, created_at, template, cli, local, lang,
+                            fragmento, turnos, text, parent_id)
+        VALUES (:sid, :at, :tpl, :cli, :local, :lang, :frag, :turnos, :text, :parent)
+        """,
+        {
+            "sid": session_id,
+            "at": created_at,
+            "tpl": template,
+            "cli": cli,
+            "local": 1 if local else 0,
+            "lang": lang,
+            "frag": fragmento,
+            "turnos": turnos,
+            "text": text,
+            "parent": parent_id,
+        },
+    )
+    conn.commit()
+    return int(cur.lastrowid)
+
+
+def answers_for_session(
+    conn: sqlite3.Connection, session_id: str, limit: int = 100
+) -> list[sqlite3.Row]:
+    """Las respuestas de una sesión, de la más nueva a la más vieja."""
+    return list(
+        conn.execute(
+            "SELECT * FROM answers WHERE session_id = ? ORDER BY created_at DESC LIMIT ?",
+            (session_id, limit),
+        )
+    )

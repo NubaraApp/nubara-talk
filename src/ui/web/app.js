@@ -43,6 +43,7 @@ function handle(msg) {
     case "segment": return onSegment(msg);
     case "translation": return onTranslation(msg);
     case "prompts": return onPrompts(msg);
+    case "answers": return onAnswers(msg);
     case "sessions": return onSessions(msg.rows);
     case "transcript": return onTranscript(msg);
     case "search_result": return onResults(msg.rows);
@@ -50,10 +51,10 @@ function handle(msg) {
     case "answer_chunk": return onAnswerChunk(msg);
     case "answer": return onAnswer(msg);
     case "error": {
-      const answer = el("answer");
-      if (answer.classList.contains("pending")) {
-        answer.classList.remove("pending");
-        answer.textContent = "";
+      if (pendingCard) {
+        pendingCard.remove();
+        pendingCard = null;
+        countAnswers();
       }
       return toast(msg.message);
     }
@@ -102,7 +103,7 @@ function buildTools(node, track, index) {
     tools.appendChild(sep);
   }
 
-  for (const template of templates) {
+  for (const template of templates.filter((t) => !t.usa_respuesta)) {
     const button = document.createElement("button");
     button.textContent = template.corto || template.nombre;
     button.title = template.descripcion || "";
@@ -231,7 +232,7 @@ function onPrompts(msg) {
   templates = msg.templates;
   const box = el("prompts");
   box.innerHTML = "";
-  for (const t of msg.templates) {
+  for (const t of msg.templates.filter((x) => !x.usa_respuesta)) {
     const button = document.createElement("button");
     button.textContent = t.nombre;
     button.title = t.descripcion || "";
@@ -262,57 +263,173 @@ function ask(template) {
   askKeys(template, [...selected.values()]);
 }
 
-function askKeys(template, keys) {
+function askKeys(template, keys, extra = {}) {
   if (!keys.length) return toast("Elegí al menos una frase.");
-  const answer = el("answer");
-  answer.classList.add("pending");
-  answer.textContent = "pensando…";
   send({
     type: "ask",
     template,
-    cli: el("cli").value || null,
+    // Ampliar trae su propia CLI desde la plantilla; el desplegable sólo manda cuando
+    // el usuario lo tocó a mano.
+    cli: extra.respuesta ? null : el("cli").value || null,
     idioma: el("idioma").value,
     // En qué idioma leo yo. Es lo que usan traducir, explicar y resumir.
     propio: MY_LANG[el("lang-mic").value] || "español",
     session_id: viewing || sessionId,
     keys,
+    ...extra,
   });
 }
 
-function answerMeta(msg) {
-  const who = msg.local
-    ? `${msg.cli} · local`
-    : `<span class="remote">${msg.cli} · remota — el texto salió de tu máquina</span>`;
-  const time = msg.elapsed === undefined ? "escribiendo…" : `${msg.elapsed.toFixed(1)}s`;
-  return `${who} · en ${msg.idioma} · ${time}`;
+// ---------------------------------------------------------------- respuestas
+
+let pendingCard = null;
+
+/** Pinta el texto de una respuesta con el poco markdown que los modelos usan.
+ *
+ * No es un renderizador de markdown: es negrita, código y viñetas, que es lo que
+ * aparece. Todo pasa antes por `escapeHtml`, así que el texto del modelo nunca llega
+ * al DOM como etiquetas.
+ */
+function renderAnswerText(node, text) {
+  node.innerHTML = "";
+  const lines = text.split("\n");
+  let list = null;
+
+  const inline = (line) =>
+    escapeHtml(line)
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const bullet = line.match(/^\s*[*-]\s+(.*)$/);
+    if (bullet) {
+      if (!list) {
+        list = document.createElement("ul");
+        node.appendChild(list);
+      }
+      const item = document.createElement("li");
+      item.innerHTML = inline(bullet[1]);
+      list.appendChild(item);
+      continue;
+    }
+    list = null;
+    if (!line.trim()) continue;
+    const paragraph = document.createElement("p");
+    paragraph.innerHTML = inline(line);
+    node.appendChild(paragraph);
+  }
+}
+
+function templateName(id) {
+  const found = templates.find((t) => t.id === id);
+  return found ? found.corto || found.nombre : id;
+}
+
+function metaHtml(data) {
+  const who = data.local
+    ? `${data.cli} · local`
+    : `<span class="remote">${data.cli} · remota</span>`;
+  const when = data.elapsed !== undefined
+    ? `${data.elapsed.toFixed(1)}s`
+    : data.created_at
+      ? new Date(data.created_at * 1000).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })
+      : "escribiendo…";
+  const lang = data.idioma || data.lang || "";
+  return `<span class="tpl">${templateName(data.template)}</span>
+          <span>${who}${lang ? ` · en ${lang}` : ""} · ${when}</span>`;
+}
+
+/** Crea la tarjeta de una respuesta y la pone arriba de todo. */
+function answerCard(data) {
+  const card = document.createElement("div");
+  card.className = "answer fresh";
+  card.innerHTML = `<div class="meta"></div><div class="quote"></div>
+                    <div class="body"></div><div class="acciones"></div>`;
+  card.querySelector(".meta").innerHTML = metaHtml(data);
+  card.querySelector(".quote").textContent = data.fragmento || "";
+  renderAnswerText(card.querySelector(".body"), data.text || "");
+  card.dataset.turnos = data.turnos || JSON.stringify(data.keys || []);
+  card.dataset.id = data.id || "";
+  el("answers").prepend(card);
+  el("answers-empty").classList.add("hidden");
+  return card;
+}
+
+/** Los botones que amplían: sólo tienen sentido con una respuesta ya escrita. */
+function fillActions(card) {
+  const box = card.querySelector(".acciones");
+  box.innerHTML = "";
+  for (const template of templates.filter((t) => t.usa_respuesta)) {
+    const button = document.createElement("button");
+    button.textContent = template.corto || template.nombre;
+    button.title = template.descripcion || "";
+    button.onclick = () => {
+      let keys = [];
+      try {
+        keys = JSON.parse(card.dataset.turnos || "[]");
+      } catch (error) {
+        keys = [];
+      }
+      if (!keys.length) return toast("Esa respuesta no guardó a qué frases contestaba.");
+      askKeys(template.id, keys, {
+        respuesta: card.querySelector(".body").textContent,
+        parent_id: Number(card.dataset.id) || null,
+      });
+    };
+    box.appendChild(button);
+  }
 }
 
 function onAnswerStart(msg) {
-  const answer = el("answer");
-  answer.classList.remove("pending");
-  answer.innerHTML = '<div class="meta"></div><div class="body"></div>';
-  answer.querySelector(".meta").innerHTML = answerMeta(msg);
+  for (const card of el("answers").children) card.classList.remove("fresh");
+  pendingCard = answerCard(msg);
+  pendingCard.classList.add("pending");
+  pendingCard.querySelector(".body").textContent = "pensando…";
+  pendingCard.dataset.streaming = "";
 }
 
 function onAnswerChunk(msg) {
-  const body = el("answer").querySelector(".body");
-  if (!body) return;
+  if (!pendingCard) return;
+  const body = pendingCard.querySelector(".body");
+  if (pendingCard.dataset.streaming === "") {
+    body.textContent = "";
+    pendingCard.dataset.streaming = "1";
+  }
   body.textContent += msg.text;
 }
 
 function onAnswer(msg) {
-  const answer = el("answer");
-  answer.classList.remove("pending");
-  // Si llegaron trozos, el texto ya está pintado: sólo se completa el encabezado con
-  // el tiempo final. Si no llegó ninguno, se pinta todo de una.
-  const body = answer.querySelector(".body");
-  if (body && body.textContent) {
-    answer.querySelector(".meta").innerHTML = answerMeta(msg);
-    return;
+  const card = pendingCard || answerCard(msg);
+  card.classList.remove("pending");
+  card.querySelector(".meta").innerHTML = metaHtml(msg);
+  card.querySelector(".quote").textContent = msg.fragmento || "";
+  // Mientras llega, el texto se pinta crudo; al terminar se rearma con formato.
+  renderAnswerText(card.querySelector(".body"), msg.text);
+  card.dataset.turnos = msg.turnos || JSON.stringify(msg.keys || []);
+  card.dataset.id = msg.id || "";
+  fillActions(card);
+  pendingCard = null;
+  countAnswers();
+}
+
+function onAnswers(msg) {
+  const box = el("answers");
+  box.innerHTML = "";
+  pendingCard = null;
+  // Llegan de la más nueva a la más vieja y cada tarjeta se agrega arriba, así que
+  // se recorren al revés para que el orden quede igual.
+  for (const row of [...msg.rows].reverse()) {
+    fillActions(answerCard(row));
   }
-  answer.innerHTML = '<div class="meta"></div><div class="body"></div>';
-  answer.querySelector(".meta").innerHTML = answerMeta(msg);
-  answer.querySelector(".body").textContent = msg.text;
+  for (const card of box.children) card.classList.remove("fresh");
+  el("answers-empty").classList.toggle("hidden", box.children.length > 0);
+  countAnswers();
+}
+
+function countAnswers() {
+  const n = el("answers").children.length;
+  el("answers-count").textContent = n ? `(${n})` : "";
 }
 
 // ---------------------------------------------------------------- búsqueda
