@@ -13,6 +13,8 @@ let running = false;
 let sessionId = null;
 let viewing = null; // sesión que se está mirando, si no es la que graba
 let templates = []; // plantillas de config/prompts.yaml, para los botones al vuelo
+let vista = "inicio"; // "inicio" (lista de reuniones) o "reunion"
+let sesiones = []; // último listado que mandó el sidecar, para pintar el inicio
 const selected = new Map(); // "track-index" -> {track, turn_index}
 
 // ---------------------------------------------------------------- conexión
@@ -148,6 +150,8 @@ function onTranslation(msg) {
 function onTranscript(msg) {
   viewing = msg.session_id;
   clearStream();
+  setVista("reunion");
+  paintTitulo();
   for (const row of msg.rows) {
     const node = bubbleFor(row.track, row.turn_index);
     node.dataset.t = row.t_start;
@@ -636,32 +640,146 @@ function sessionLabel(row) {
   return `${day} ${time}`;
 }
 
-function onSessions(rows) {
-  const box = el("sessions");
-  box.innerHTML = "";
-  for (const row of rows) {
-    const item = document.createElement("div");
-    item.className = "session";
-    const when = row.ended_at ? "" : " · abierta";
-    const cuando = sessionLabel(row);
-    // El título lo escribe el resumen. Mientras no se haya resumido, la fecha es lo
-    // único que hay para distinguir una sesión de otra, así que sigue siendo el
-    // renglón de arriba.
-    const titulo = (row.title || "").trim();
-    const cuenta = `${row.segmentos} segmento${row.segmentos === 1 ? "" : "s"}`;
-    item.innerHTML = `<div class="nombre">${escapeHtml(titulo || cuando)}</div>
-      <small>${titulo ? `${cuando} · ` : ""}${cuenta}${when}</small>`;
-    item.title = titulo ? `${titulo}\n${cuando} · ${row.id}` : row.id;
-    item.onclick = () => send({ type: "transcript", session_id: row.id });
-    box.appendChild(item);
-  }
+function sessionDate(row) {
+  return !row.started_at || row.started_at < 1e9 ? null : new Date(row.started_at * 1000);
 }
 
+/** Encabezado del día. "Hoy" y "Ayer" por nombre: es como uno busca una reunión. */
+function dayLabel(date) {
+  if (!date) return "sin fecha";
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return "Hoy";
+  if (date.toDateString() === yesterday.toDateString()) return "Ayer";
+  return date.toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" });
+}
+
+function onSessions(rows) {
+  sesiones = rows;
+  renderHome();
+  paintTitulo();
+}
+
+function sessionRow(id) {
+  return sesiones.find((row) => row.id === id) || null;
+}
+
+/** Nombre de la reunión abierta, en la barra de arriba. Vale para saber dónde se está. */
+function paintTitulo() {
+  const row = sessionRow(viewing || sessionId);
+  const nombre = row ? (row.title || "").trim() || sessionLabel(row) : "";
+  el("reunion-titulo").textContent = nombre || (running ? "Reunión en curso" : "");
+}
+
+function renderHome() {
+  const box = el("home-list");
+  const q = el("home-q").value.trim().toLowerCase();
+  const match = (row) =>
+    !q ||
+    (row.title || "").toLowerCase().includes(q) ||
+    sessionLabel(row).toLowerCase().includes(q);
+
+  box.innerHTML = "";
+  const rows = sesiones.filter(match);
+  el("home-empty").textContent = q
+    ? "Ninguna reunión coincide con eso."
+    : "Todavía no hay reuniones. Dale a Nueva reunión y empezá a grabar.";
+  el("home-empty").classList.toggle("hidden", rows.length > 0);
+
+  let dia = null;
+  for (const row of rows) {
+    const label = dayLabel(sessionDate(row));
+    if (label !== dia) {
+      dia = label;
+      const head = document.createElement("div");
+      head.className = "dia";
+      head.textContent = label;
+      box.appendChild(head);
+    }
+    box.appendChild(homeItem(row));
+  }
+
+  // La sesión que se acaba de crear todavía no está en el listado que mandó el sidecar:
+  // el aviso de que hay algo grabando no puede esperar a la próxima consulta.
+  const viva = running && sessionId ? sessionRow(sessionId) : null;
+  el("viva").classList.toggle("hidden", !(running && sessionId));
+  el("viva-sub").textContent = viva
+    ? `${(viva.title || "").trim() || sessionLabel(viva)} · ${viva.segmentos} segmentos`
+    : "recién empezada";
+}
+
+function homeItem(row) {
+  const item = document.createElement("div");
+  item.className = "reunion";
+  if (running && row.id === sessionId) item.classList.add("grabando");
+
+  // El título lo escribe el resumen. Sin resumir no hay de qué agarrarse más que la
+  // hora, así que la hora pasa a ser el nombre — y entonces la columna de la derecha
+  // sobra, porque diría lo mismo dos veces en el mismo renglón.
+  const titulo = (row.title || "").trim();
+  const date = sessionDate(row);
+  const hora =
+    titulo && date ? date.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }) : "";
+  const cuenta = `${row.segmentos} segmento${row.segmentos === 1 ? "" : "s"}`;
+  const viva = running && row.id === sessionId;
+  const estado = viva ? " · grabando" : row.ended_at ? "" : " · abierta";
+
+  item.innerHTML = `<span class="icono" aria-hidden="true"></span>
+    <div class="txt">
+      <div class="titulo">${escapeHtml(titulo || sessionLabel(row))}</div>
+      <small>Yo · ${cuenta}${estado}</small>
+    </div>
+    <span class="hora">${hora}</span>`;
+  item.title = `${titulo || sessionLabel(row)}\n${row.id}`;
+  item.onclick = () => openSession(row.id);
+  return item;
+}
+
+/** Abre una reunión. La que se está grabando ya está en pantalla: no se recarga. */
+function openSession(id) {
+  if (running && id === sessionId) {
+    viewing = null;
+    paintTitulo();
+    return setVista("reunion");
+  }
+  clearStream();
+  send({ type: "transcript", session_id: id });
+  setVista("reunion");
+}
+
+// ---------------------------------------------------------------- vistas
+
+function setVista(next) {
+  vista = next;
+  document.body.classList.toggle("vista-inicio", next === "inicio");
+  document.body.classList.toggle("vista-reunion", next === "reunion");
+  paintToggle();
+}
+
+el("volver").onclick = () => {
+  setVista("inicio");
+  // El listado trae el conteo de segmentos y el título que puso el resumen; los dos
+  // cambian mientras uno está adentro de la reunión.
+  send({ type: "sessions" });
+};
+
+el("home-q").oninput = () => renderHome();
+el("viva").querySelector("button").onclick = () => openSession(sessionId);
+
 // ---------------------------------------------------------------- captura
+
+/** El botón grande hace una sola cosa por vez; el texto dice cuál. */
+function paintToggle() {
+  const button = el("toggle");
+  button.textContent = running ? "Parar" : vista === "inicio" ? "Nueva reunión" : "Empezar";
+  button.classList.toggle("rec", running);
+}
 
 el("toggle").onclick = () => {
   if (running) return send({ type: "stop" });
   clearStream();
+  setVista("reunion");
   el("status").textContent = "arrancando…";
   send({
     type: "start",
@@ -677,11 +795,18 @@ function onState(msg) {
   running = msg.running;
   sessionId = msg.session_id;
   if (running) viewing = null;
-  el("toggle").textContent = running ? "Parar" : "Empezar";
-  el("toggle").classList.toggle("rec", running);
+  paintToggle();
   el("dot").classList.toggle("rec", running);
   el("status").textContent = running ? `grabando · ${msg.backend || ""}` : "listo";
-  if (!running) send({ type: "sessions" });
+  el("empty-titulo").textContent = running ? "Escuchando…" : "Nada todavía.";
+  el("empty-sub").innerHTML = running
+    ? "Lo que se diga aparece acá, cada pista de su lado."
+    : "Dale a <b>Empezar</b> para grabar esta reunión.";
+  paintTitulo();
+  // Arrancar crea una sesión y parar le pone el final: en los dos casos el listado que
+  // hay en pantalla quedó viejo.
+  send({ type: "sessions" });
+  renderHome();
 }
 
 // ---------------------------------------------------------------- varios
@@ -822,4 +947,8 @@ function setAside(px) {
   });
 })();
 
+// Lo primero que se ve es la lista de reuniones, no una transcripción vacía: al abrir
+// la app uno viene a retomar algo que ya pasó o a arrancar algo nuevo, y las dos cosas
+// están acá.
+setVista("inicio");
 connect();

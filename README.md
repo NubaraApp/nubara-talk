@@ -84,6 +84,13 @@ python -m src.spikes.f6_resumen --sesion <id>
 python -m src.spikes.f6_resumen --solo-material    # qué se le mandaría, sin llamar al LLM
 ```
 
+## La ventana
+
+Abre en la lista de reuniones, agrupadas por día y con el título que les puso el
+resumen. Un clic abre una; `‹ Reuniones` arriba a la izquierda vuelve a la lista;
+**Nueva reunión** arranca a grabar. Si se vuelve a la lista con el micrófono abierto,
+una franja roja arriba dice cuál es la reunión que está grabando.
+
 ## Abrir la app (F5)
 
 ```bash

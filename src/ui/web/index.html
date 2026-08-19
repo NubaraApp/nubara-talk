@@ -13,6 +13,11 @@
       <span class="name">granola<span class="dim">-local</span></span>
     </div>
 
+    <button id="volver" class="ghost solo-reunion" title="Volver a la lista de reuniones">
+      ‹ Reuniones
+    </button>
+    <span id="reunion-titulo" class="reunion-titulo solo-reunion"></span>
+
     <div class="status">
       <span id="dot" class="dot"></span>
       <span id="status">conectando…</span>
@@ -47,15 +52,39 @@
       </div>
     </details>
 
-    <button id="reply-last" class="ghost" title="Elige lo último que se dijo y pide una respuesta">
+    <button id="reply-last" class="ghost solo-reunion"
+            title="Elige lo último que se dijo y pide una respuesta">
       Responder al último
     </button>
-    <button id="resumir" class="ghost"
+    <button id="resumir" class="ghost solo-reunion"
             title="Manda la conversación entera al LLM y arma un resumen detallado. Para el final.">
       Resumen
     </button>
     <button id="toggle" class="primary">Empezar</button>
   </header>
+
+  <!-- Pantalla de entrada: lo primero que se ve al abrir la app son las reuniones que
+       ya hay, no un lienzo vacío. Una reunión vieja se abre de un clic. -->
+  <section id="home" class="home">
+    <div class="home-inner">
+      <div class="home-head">
+        <h1>Reuniones</h1>
+        <input id="home-q" type="search" placeholder="Buscar por título…" />
+      </div>
+
+      <div id="viva" class="viva hidden">
+        <span class="dot rec"></span>
+        <div class="txt">
+          <b>Grabando ahora</b>
+          <small id="viva-sub" class="dim"></small>
+        </div>
+        <button class="ghost">Volver a la reunión</button>
+      </div>
+
+      <div id="home-list" class="home-list"></div>
+      <p id="home-empty" class="home-empty hidden"></p>
+    </div>
+  </section>
 
   <main>
     <section id="stream-pane">
@@ -63,8 +92,8 @@
 
       <div id="empty" class="empty">
         <div class="empty-art" aria-hidden="true"></div>
-        <p>Nada todavía.</p>
-        <p class="dim">Dale a <b>Empezar</b>, o abrí una sesión anterior desde el panel.</p>
+        <p id="empty-titulo">Nada todavía.</p>
+        <p id="empty-sub" class="dim">Dale a <b>Empezar</b> para grabar esta reunión.</p>
       </div>
 
       <div id="actionbar" class="actionbar hidden">
@@ -109,11 +138,6 @@
         <input id="q" type="search" placeholder="palabra o frase…" />
         <label class="check dim"><input type="checkbox" id="only-session" /> sólo esta sesión</label>
         <div id="results" class="list"></div>
-      </section>
-
-      <section class="card">
-        <h2>Sesiones</h2>
-        <div id="sessions" class="list"></div>
       </section>
     </aside>
   </main>

@@ -615,3 +615,39 @@ nombrar sería absurdo.
 fecha. Es correcto: nadie escribió todavía de qué se trató. Y el título no se puede
 editar a mano — si el modelo le erra, hay que volver a resumir.
 
+
+## ADR-036 — La app abre en la lista de reuniones, no en una transcripción vacía
+
+**Decisión:** hay dos pantallas y un solo encabezado. Al abrir, se ve `#home`: las
+reuniones agrupadas por día (`Hoy`, `Ayer`, `jue 13 de ago`), con el título que puso el
+resumen, la cantidad de segmentos y la hora. Un clic abre la reunión; `‹ Reuniones`
+vuelve. La lista del panel derecho se fue: era la misma información en un lugar peor.
+
+**Motivo:** la app abría en un lienzo vacío que decía "Nada todavía", y las reuniones
+anteriores vivían apretadas en una lista de 260 px de alto al final del panel derecho,
+debajo de las respuestas y del buscador. Pero abrir la app es, casi siempre, venir a
+retomar algo que ya pasó. Lo que se busca tiene que ser lo que se ve.
+
+**Decisiones de detalle.**
+
+*Un solo encabezado para las dos vistas.* Los botones que no tienen sentido sin una
+reunión adelante (`Responder al último`, `Resumen`, el título) llevan `.solo-reunion` y
+se van con la vista. El botón grande cambia de texto según dónde se está: `Nueva
+reunión` en el inicio, `Empezar`/`Parar` adentro. Dos encabezados en paralelo habrían
+duplicado el estado de conexión, los ajustes y el punto de grabación.
+
+*La hora no se dice dos veces.* Una reunión sin resumir no tiene título, así que el
+nombre que le queda es la fecha: en esas filas la columna derecha se deja vacía en vez
+de repetir la misma hora a 60 px de distancia.
+
+*El aviso de que algo está grabando vive en el inicio.* Con dos pantallas se puede
+volver a la lista con el micrófono abierto. La franja roja de arriba dice cuál es la
+reunión viva y la devuelve de un clic — sin recargar la transcripción, que ya está en
+pantalla y tiene los parciales que la base todavía no vio.
+
+*Buscar en el inicio filtra local.* Son 50 sesiones como mucho: filtrar por título y
+fecha en memoria da resultados mientras se escribe y no toca el sidecar. El buscador de
+adentro sigue siendo el de FTS5, que es otra cosa — busca en lo que se dijo.
+
+**Costo aceptado:** el listado corta en 50 sesiones, que es lo que devuelve el sidecar.
+Con más reuniones que eso van a faltar las viejas y va a hacer falta paginar.

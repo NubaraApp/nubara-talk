@@ -139,3 +139,22 @@ el final de la reunión. Ver ADR-034.
 **Sin verificar:** todo lo medido salió de reuniones de prueba de pocos minutos. No se
 probó con una reunión de una hora, que es donde el resumen por tramos empieza a importar
 de verdad.
+
+## F7 — La app abre en las reuniones
+
+La app entra por la lista de reuniones, no por una transcripción vacía. Ver ADR-036.
+
+**Criterios de salida:**
+
+- [x] Al abrir se ven las reuniones, agrupadas por día y con el título del resumen —
+      24 filas bajo `Hoy` y `sin fecha`
+- [x] Un clic abre la reunión con su transcripción y sus respuestas; `‹ Reuniones`
+      vuelve al inicio
+- [x] Volver al inicio con el micrófono abierto avisa cuál es la reunión viva y la
+      devuelve sin recargar la transcripción — `viewing` queda en `null`
+- [x] Buscar por título filtra la lista mientras se escribe, y dice cuando no hay nada
+- [x] Una sesión recién creada, todavía fuera del listado, igual sale como grabando
+
+**Sin verificar:** el estado de grabación se probó inyectando el mensaje `state` en la
+ventana, no con audio real — no hay dispositivos de audio en el entorno donde se
+desarrolló. Falta correrlo con una reunión de verdad.
