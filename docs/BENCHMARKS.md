@@ -272,3 +272,25 @@ Misma frase (`Does anyone have concerns about the migration timeline?`), misma p
 
 Sin instrucciones el modelo niega el problema; con ellas lo reconoce y no compromete
 fechas, que era la instrucción.
+
+## Resumen de la reunión (F6)
+
+`python -m src.spikes.f6_resumen`, MacBook Pro M-series, `gemma4` sobre ollama.
+
+| Sesión | Turnos confirmados | Tras sacar el eco | Caracteres | Tramos | Tiempo | Secciones |
+|---|---|---|---|---|---|---|
+| `4031177656b3` | 6 | 3 | 99 | 1 | **14.1 s** | 6 de 6 |
+| `ee0f5ea16438` | 160 | 160 | 7745 | 2 | **31.4 s** | 6 de 6 |
+
+El eco entre pistas se saca antes de mandar: en `4031177656b3` la mitad de los turnos era
+la misma frase captada por el micrófono y por el tap. En `ee0f5ea16438` no cayó ninguno,
+porque las dos pistas transcribían cosas distintas.
+
+Por encima de 6000 caracteres la transcripción se corta en tramos, se resume cada uno con
+`resumen_parte` (`ollama`, sin razonar) y después se resume el conjunto con
+`resumen_reunion` (`ollama-razonando`). Los 31,4 s de `ee0f5ea16438` incluyen los dos
+tramos y el resumen final.
+
+**Lo que no mide esto:** la calidad. El modelo repitió como datos de la reunión siglas
+que el reconocimiento de voz había inventado (`LCL`, `tests de Cuba`). El resumen no
+puede ser mejor que la transcripción de la que sale.

@@ -67,6 +67,20 @@ Idioma por pista con `--lang-mic` y `--lang-sys`, o `auto` para detectarlo:
 python -m src.spikes.f1_transcribe --lang-mic es --lang-sys en
 ```
 
+## Resumir una reunión (F6)
+
+Al terminar, el botón **Resumen** de la ventana manda la conversación entera al LLM y
+devuelve un resumen con temas, decisiones, tareas, preguntas abiertas y datos. Queda
+guardado con las demás respuestas, así que vuelve solo al reabrir la sesión.
+
+Sin abrir la ventana:
+
+```bash
+python -m src.spikes.f6_resumen                    # la sesión más larga de la base
+python -m src.spikes.f6_resumen --sesion <id>
+python -m src.spikes.f6_resumen --solo-material    # qué se le mandaría, sin llamar al LLM
+```
+
 ## Abrir la app (F5)
 
 ```bash

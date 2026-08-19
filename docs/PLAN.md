@@ -115,3 +115,25 @@ Tauri con sidecar Python. Se comunican por WebSocket local.
 - [x] Las respuestas se guardan y se releen; abrir una sesión vieja las trae
 - [x] Cuadro de instrucciones: quién sos y cómo querés que te contesten
 - [x] Ventana nativa en Tauri que lanza y mata el sidecar
+- [x] Las respuestas se agrupan por pregunta; sólo queda abierto el último grupo
+- [x] *Responder al último* elige el turno más nuevo de la transcripción, no el de una
+      pista fija — ver ADR-033
+
+## F6 — Resumen de la reunión
+
+Un botón que manda la conversación entera al LLM y devuelve un resumen detallado, para
+el final de la reunión. Ver ADR-034.
+
+**Criterios de salida:**
+
+- [x] El resumen sale con las secciones pedidas — 6 de 6 en `ee0f5ea16438` y en
+      `4031177656b3`
+- [x] Se saca el eco entre pistas antes de mandar — 6 turnos a 3 en `4031177656b3`
+- [x] Si no entra en el contexto, se resume por tramos — 160 turnos y 7745 caracteres
+      en `ee0f5ea16438` salieron en 2 tramos
+- [x] Queda guardado y vuelve al reabrir la sesión — es una fila de `answers`
+- [x] Tarda menos de 300 s — 31,4 s con 160 turnos, 14,1 s con 3
+
+**Sin verificar:** todo lo medido salió de reuniones de prueba de pocos minutos. No se
+probó con una reunión de una hora, que es donde el resumen por tramos empieza a importar
+de verdad.

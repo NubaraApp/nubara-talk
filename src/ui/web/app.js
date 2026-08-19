@@ -52,10 +52,15 @@ function handle(msg) {
     case "answer": return onAnswer(msg);
     case "error": {
       if (pendingCard) {
+        const group = pendingCard.closest(".grupo");
         pendingCard.remove();
+        // Si la que falló era la primera del grupo, el grupo queda como un título sin
+        // nada debajo.
+        if (group && !group.querySelector(".answer")) group.remove();
         pendingCard = null;
         countAnswers();
       }
+      resumirListo();
       return toast(msg.message);
     }
   }
@@ -64,6 +69,11 @@ function handle(msg) {
 // ---------------------------------------------------------------- transcripción
 
 function key(track, index) { return `${track}-${index}`; }
+
+// Qué plantillas se ofrecen sobre una frase: las que no necesitan una respuesta previa
+// y las que no corren sobre la reunión entera. Un resumen de toda la reunión colgado de
+// una sola frase no querría decir nada; ese va por el botón de arriba.
+const perFrase = (t) => !t.usa_respuesta && t.alcance !== "sesion";
 
 function bubbleFor(track, index) {
   const id = key(track, index);
@@ -103,7 +113,7 @@ function buildTools(node, track, index) {
     tools.appendChild(sep);
   }
 
-  for (const template of templates.filter((t) => !t.usa_respuesta)) {
+  for (const template of templates.filter(perFrase)) {
     const button = document.createElement("button");
     button.textContent = template.corto || template.nombre;
     button.title = template.descripcion || "";
@@ -122,6 +132,7 @@ function buildTools(node, track, index) {
 
 function onSegment(msg) {
   const node = bubbleFor(msg.track, msg.turn_index);
+  node.dataset.t = msg.t_start;
   node.querySelector(".text").textContent = msg.text;
   node.querySelector(".t").textContent = `${msg.t_start.toFixed(1)}s`;
   node.classList.toggle("partial", !msg.final);
@@ -139,6 +150,7 @@ function onTranscript(msg) {
   clearStream();
   for (const row of msg.rows) {
     const node = bubbleFor(row.track, row.turn_index);
+    node.dataset.t = row.t_start;
     node.querySelector(".text").textContent = row.text;
     node.querySelector(".t").textContent = `${row.t_start.toFixed(1)}s`;
     node.querySelector(".trad").textContent = row.text_trad || "";
@@ -205,11 +217,20 @@ function clearSelection() {
 
 el("clear").onclick = clearSelection;
 
-// La acción más común en una reunión es responder a lo último que dijeron. Un clic.
+// La acción más común en una reunión es responder a lo último que se dijo. Un clic.
 el("reply-last").onclick = () => {
-  const bubbles = [...stream.children].filter((n) => n.classList.contains("sys"));
-  const last = bubbles[bubbles.length - 1];
-  if (!last) return toast("Todavía no dijeron nada.");
+  // Lo último es lo último, sin mirar la pista. Antes esto filtraba por `sys` ("ellos"),
+  // que suena bien pero falla en la práctica: el micrófono levanta también la voz de la
+  // sala, y si la pista de sistema está muda o atrasada, filtrar por `sys` termina
+  // contestando a una frase del principio de la reunión.
+  // Se compara por `t_start` y no por posición en el DOM: las burbujas se crean cuando
+  // llega su primer parcial, y dos pistas no siempre transcriben en el mismo orden.
+  const last = [...stream.children].reduce(
+    (best, node) =>
+      !best || Number(node.dataset.t || 0) >= Number(best.dataset.t || 0) ? node : best,
+    null,
+  );
+  if (!last) return toast("Todavía no se dijo nada.");
   clearSelection();
   select(last, true);
   lastClicked = last;
@@ -218,6 +239,26 @@ el("reply-last").onclick = () => {
   const first = el("prompts").querySelector("button");
   if (first) first.click();
 };
+
+// El resumen es lo que se pide al final: manda la conversación entera, no la selección.
+el("resumir").onclick = () => {
+  const session = viewing || sessionId;
+  if (!session) return toast("No hay ninguna reunión abierta para resumir.");
+  el("resumir").disabled = true;
+  el("resumir").textContent = "Resumiendo…";
+  send({
+    type: "resumen",
+    session_id: session,
+    idioma: el("idioma").value,
+    propio: MY_LANG[el("lang-mic").value] || "español",
+    instrucciones: el("instrucciones").value,
+  });
+};
+
+function resumirListo() {
+  el("resumir").disabled = false;
+  el("resumir").textContent = "Resumen";
+}
 
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -232,7 +273,7 @@ function onPrompts(msg) {
   templates = msg.templates;
   const box = el("prompts");
   box.innerHTML = "";
-  for (const t of msg.templates.filter((x) => !x.usa_respuesta)) {
+  for (const t of msg.templates.filter(perFrase)) {
     const button = document.createElement("button");
     button.textContent = t.nombre;
     button.title = t.descripcion || "";
@@ -316,6 +357,15 @@ function renderAnswerText(node, text) {
     }
     list = null;
     if (!line.trim()) continue;
+    // Un renglón que es todo negrita es un título de sección, no un párrafo en negrita.
+    // El resumen viene con seis de estos y sin separarlos se lee como un bloque solo.
+    const head = line.trim().match(/^\*\*(.+?)\*\*:?$/);
+    if (head) {
+      const title = document.createElement("h4");
+      title.textContent = head[1];
+      node.appendChild(title);
+      continue;
+    }
     const paragraph = document.createElement("p");
     paragraph.innerHTML = inline(line);
     node.appendChild(paragraph);
@@ -331,48 +381,88 @@ function metaHtml(data) {
   const who = data.local
     ? `${data.cli} · local`
     : `<span class="remote">${data.cli} · remota</span>`;
+  // La hora la muestra el encabezado del grupo; repetirla en cada tarjeta es ruido.
+  // Acá sólo interesa lo que cambia entre una respuesta y otra: cuánto tardó.
   const when = data.elapsed !== undefined
-    ? `${data.elapsed.toFixed(1)}s`
+    ? ` · ${data.elapsed.toFixed(1)}s`
     : data.created_at
-      ? new Date(data.created_at * 1000).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })
-      : "escribiendo…";
+      ? ""
+      : " · escribiendo…";
   const lang = data.idioma || data.lang || "";
   return `<span class="tpl">${templateName(data.template)}</span>
-          <span>${who}${lang ? ` · en ${lang}` : ""} · ${when}</span>`;
+          <span>${who}${lang ? ` · en ${lang}` : ""}${when}</span>`;
 }
 
-/** Crea la tarjeta de una respuesta y la pone arriba de todo. */
+function whenLabel(data) {
+  if (!data.created_at) return "recién";
+  return new Date(data.created_at * 1000).toLocaleTimeString("es", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** Numera los grupos. El de arriba es el número más alto: así se los nombra sin dudas. */
+function numberGroups() {
+  const groups = [...el("answers").children];
+  groups.forEach((group, i) => {
+    group.querySelector(".n").textContent = `#${groups.length - i}`;
+  });
+}
+
+/** Devuelve el grupo al que pertenece una respuesta, creándolo si es la primera.
+ *
+ * Un grupo es una pregunta: la respuesta corta y su ampliación. Sin agrupar, el panel
+ * es una pila de tarjetas parecidas donde no se ve dónde termina una y empieza la otra,
+ * que es justo lo que se necesita ver cuando se piden varias seguidas en una reunión.
+ */
+function groupFor(data) {
+  const box = el("answers");
+  const root = data.parent_id ? String(data.parent_id) : String(data.id || "");
+  if (root) {
+    const found = box.querySelector(`.grupo[data-root="${root}"]`);
+    if (found) return found;
+  }
+
+  const group = document.createElement("details");
+  group.className = "grupo";
+  group.dataset.root = root;
+  group.innerHTML = `<summary><span class="n"></span><span class="frase"></span>
+                     <span class="cuando"></span></summary>
+                     <div class="cards"></div>`;
+  setGroupHead(group, data);
+
+  // Sólo queda abierto el grupo de arriba. Con todos abiertos el panel vuelve a ser un
+  // muro de texto; plegados, la lista de preguntas entra entera de un vistazo.
+  for (const other of box.children) other.open = false;
+  group.open = true;
+  box.prepend(group);
+  box.scrollTop = 0;
+  numberGroups();
+  return group;
+}
+
+function setGroupHead(group, data) {
+  const frase = group.querySelector(".frase");
+  frase.textContent = data.fragmento || "sin fragmento";
+  frase.title = data.fragmento || "";
+  group.querySelector(".cuando").textContent = whenLabel(data);
+}
+
+/** Crea la tarjeta de una respuesta dentro de su grupo, con el grupo nuevo arriba. */
 function answerCard(data) {
+  const group = groupFor(data);
   const card = document.createElement("div");
   card.className = "answer fresh";
-  card.innerHTML = `<div class="meta"></div><div class="quote"></div>
-                    <div class="body"></div><div class="acciones"></div>`;
+  card.innerHTML = `<div class="meta"></div><div class="body"></div><div class="acciones"></div>`;
   card.querySelector(".meta").innerHTML = metaHtml(data);
-  card.querySelector(".quote").textContent = data.fragmento || "";
   renderAnswerText(card.querySelector(".body"), data.text || "");
   card.dataset.turnos = data.turnos || JSON.stringify(data.keys || []);
   card.dataset.id = data.id || "";
   card.dataset.parent = data.parent_id || "";
+  card.dataset.template = data.template || "";
 
-  // Dos órdenes a la vez, porque son dos cosas distintas: lo más nuevo va arriba para no
-  // perderlo, pero una ampliación va pegada debajo de la respuesta que amplía. Si la
-  // ampliación se agregara arriba de todo, empujaría hacia abajo justo el texto que se
-  // está leyendo mientras crece.
-  const box = el("answers");
-  const parent = data.parent_id ? box.querySelector(`[data-id="${data.parent_id}"]`) : null;
-  if (parent) {
-    let anchor = parent;
-    const same = (node) => node && node.dataset.parent === String(data.parent_id);
-    while (same(anchor.nextElementSibling)) {
-      anchor = anchor.nextElementSibling;
-    }
-    anchor.after(card);
-  } else {
-    box.prepend(card);
-    box.scrollTop = 0;
-  }
-
-  el("answers-empty").classList.add("hidden");
+  // Dentro del grupo manda el orden de lectura: primero la corta, debajo la ampliación.
+  group.querySelector(".cards").appendChild(card);
   return card;
 }
 
@@ -380,7 +470,12 @@ function answerCard(data) {
 function fillActions(card) {
   const box = card.querySelector(".acciones");
   box.innerHTML = "";
-  for (const template of templates.filter((t) => t.usa_respuesta)) {
+  // Ampliar tiene sentido sobre una respuesta a un par de frases. Sobre el resumen de la
+  // reunión entera no: pediría desarrollar una respuesta a una reunión completa.
+  const suyo = templates.find((t) => t.id === card.dataset.template);
+  const sesion = suyo && suyo.alcance === "sesion";
+  const ampliables = sesion ? [] : templates.filter((t) => t.usa_respuesta);
+  for (const template of ampliables) {
     const button = document.createElement("button");
     button.textContent = template.corto || template.nombre;
     button.title = template.descripcion || "";
@@ -399,10 +494,21 @@ function fillActions(card) {
     };
     box.appendChild(button);
   }
+
+  const copiar = document.createElement("button");
+  copiar.textContent = "Copiar";
+  copiar.title = "Copia el texto al portapapeles";
+  copiar.onclick = () => {
+    navigator.clipboard
+      .writeText(card.querySelector(".body").textContent)
+      .then(() => toast("Copiado.", true))
+      .catch(() => toast("El portapapeles no dejó copiar."));
+  };
+  box.appendChild(copiar);
 }
 
 function onAnswerStart(msg) {
-  for (const card of el("answers").children) card.classList.remove("fresh");
+  for (const card of el("answers").querySelectorAll(".answer")) card.classList.remove("fresh");
   pendingCard = answerCard(msg);
   pendingCard.classList.add("pending");
   pendingCard.querySelector(".body").textContent = "pensando…";
@@ -428,13 +534,21 @@ function onAnswer(msg) {
   const card = pendingCard || answerCard(msg);
   card.classList.remove("pending");
   card.querySelector(".meta").innerHTML = metaHtml(msg);
-  card.querySelector(".quote").textContent = msg.fragmento || "";
   // Mientras llega, el texto se pinta crudo; al terminar se rearma con formato.
   renderAnswerText(card.querySelector(".body"), msg.text);
   card.dataset.turnos = msg.turnos || JSON.stringify(msg.keys || []);
   card.dataset.id = msg.id || "";
+  card.dataset.template = msg.template || "";
+  // El grupo nace sin id: `answer_start` todavía no lo sabe, se asigna al guardar.
+  // Sin esto la ampliación no encontraría a su grupo y se abriría uno aparte.
+  const group = card.closest(".grupo");
+  if (group && !group.dataset.root) {
+    group.dataset.root = msg.id || "";
+    setGroupHead(group, msg);
+  }
   fillActions(card);
   pendingCard = null;
+  resumirListo();
   countAnswers();
 
   // La ampliación arranca sola apenas está la corta. No se lanzan las dos a la vez a
@@ -464,14 +578,17 @@ function onAnswers(msg) {
   for (const row of [...msg.rows].reverse()) {
     fillActions(answerCard(row));
   }
-  for (const card of box.children) card.classList.remove("fresh");
-  el("answers-empty").classList.toggle("hidden", box.children.length > 0);
+  for (const card of box.querySelectorAll(".answer")) card.classList.remove("fresh");
   countAnswers();
 }
 
 function countAnswers() {
-  const n = el("answers").children.length;
-  el("answers-count").textContent = n ? `(${n})` : "";
+  const box = el("answers");
+  const grupos = box.children.length;
+  const n = box.querySelectorAll(".answer").length;
+  el("answers-count").textContent = grupos ? `(${grupos} · ${n} textos)` : "";
+  el("answers-empty").classList.toggle("hidden", n > 0);
+  numberGroups();
 }
 
 // ---------------------------------------------------------------- búsqueda
@@ -569,9 +686,9 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function toast(message) {
+function toast(message, ok = false) {
   const node = document.createElement("div");
-  node.className = "toast";
+  node.className = ok ? "toast ok" : "toast";
   node.textContent = message;
   document.body.appendChild(node);
   setTimeout(() => node.remove(), 6000);

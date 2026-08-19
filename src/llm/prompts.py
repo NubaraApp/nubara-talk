@@ -39,6 +39,10 @@ class PromptTemplate:
     # termina la respuesta corta, para que la larga se vaya escribiendo mientras
     # se lee la corta.
     ampliar_con: str = ""
+    # "fragmento" (corre sobre las frases elegidas) o "sesion" (corre sobre la reunión
+    # entera, desde el botón de resumen). Las de sesión no se ofrecen como botón encima
+    # de cada frase: sobre una sola frase no querrían decir nada.
+    alcance: str = "fragmento"
 
     @property
     def usa_respuesta(self) -> bool:
@@ -113,6 +117,7 @@ def load(path: Path | str = DEFAULT_CONFIG) -> Config:
             idioma=entry.get("idioma", "propio"),
             cli=entry.get("cli", ""),
             ampliar_con=entry.get("ampliar_con", ""),
+            alcance=entry.get("alcance", "fragmento"),
         )
 
     for template in prompts.values():
@@ -125,6 +130,11 @@ def load(path: Path | str = DEFAULT_CONFIG) -> Config:
             raise RuntimeError(
                 f"{path}: el prompt {template.id!r} tiene idioma={template.idioma!r}. "
                 f"Sólo valen 'fragmento' y 'propio'."
+            )
+        if template.alcance not in ("fragmento", "sesion"):
+            raise RuntimeError(
+                f"{path}: el prompt {template.id!r} tiene alcance={template.alcance!r}. "
+                f"Sólo valen 'fragmento' y 'sesion'."
             )
 
     if not prompts:

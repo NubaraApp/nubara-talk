@@ -129,3 +129,64 @@ prompts:
       Resumí en {idioma}, en tres o cuatro puntos, lo hablado acá:
 
       {fragmento}
+
+  # ------------------------------------------------------------------ fin de reunión
+  # Estas dos corren sobre la conversación entera, no sobre una selección. Por eso
+  # `alcance: sesion`: así no aparecen como botón encima de cada frase.
+
+  - id: resumen_parte
+    alcance: sesion
+    idioma: propio
+    corto: Tramo
+    nombre: Resumir un tramo de la reunión
+    descripcion: Paso intermedio, cuando la reunión no entra de una en el contexto.
+    plantilla: |
+      Este es un tramo de la transcripción de una reunión.
+
+      {fragmento}
+
+      Anotá en {idioma}, en punteo seco y sin preámbulo: los temas que se tocaron, las
+      decisiones, las tareas con su responsable, las cifras y fechas que se dijeron, y
+      las preguntas que quedaron abiertas. No agregues nada que no esté en el texto.
+
+  - id: resumen_reunion
+    alcance: sesion
+    idioma: propio
+    # Un resumen se pide una vez, al final. Acá el tiempo importa menos que la calidad.
+    cli: ollama-razonando
+    corto: Resumen
+    nombre: Resumen de la reunión
+    descripcion: Manda toda la conversación y arma un resumen detallado, al terminar.
+    plantilla: |
+      {instrucciones}
+      Esto es la transcripción de una reunión, o las notas de cada uno de sus tramos.
+      Viene de un reconocimiento de voz automático, así que puede tener palabras mal
+      transcritas: interpretá con sentido común y no cites al pie de la letra algo que
+      claramente salió mal.
+
+      {fragmento}
+
+      Escribí en {idioma} un resumen detallado, con estas secciones, en este orden y con
+      estos títulos. Si una sección no tiene contenido, poné un guion debajo y seguí.
+
+      **Resumen**
+      Dos o tres frases sobre de qué se trató la reunión.
+
+      **Temas**
+      Un punto por tema, con lo que se dijo de cada uno.
+
+      **Decisiones**
+      Qué se decidió y, si se dijo, por qué.
+
+      **Tareas**
+      Un punto por tarea: qué hay que hacer, quién y para cuándo. Si no se dijo quién o
+      cuándo, escribí la tarea igual y aclará que quedó sin definir.
+
+      **Preguntas abiertas**
+      Lo que quedó sin resolver.
+
+      **Datos y cifras**
+      Números, fechas, nombres propios y siglas que se mencionaron.
+
+      No inventes nada que no esté en la transcripción. Sin preámbulo ni comentarios
+      sobre la tarea.

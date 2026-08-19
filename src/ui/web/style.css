@@ -275,16 +275,41 @@ aside {
 .card input[type="search"] { width: 100%; margin-bottom: 8px; }
 .card .check { margin-bottom: 8px; }
 
-/* Las respuestas se apilan, la más nueva arriba. Pedir una nueva no borra la anterior:
-   en una reunión uno pide varias seguidas y quiere poder volver a la de antes. */
-.answers { display: flex; flex-direction: column; gap: 10px; max-height: 52vh; overflow-y: auto; }
+/* Las respuestas se apilan por grupo, el más nuevo arriba. Pedir una nueva no borra la
+   anterior: en una reunión uno pide varias seguidas y quiere volver a la de antes. */
+.answers { display: flex; flex-direction: column; gap: 8px; max-height: 62vh; overflow-y: auto; }
 .answers:empty { display: none; }
+
+/* Un grupo es una pregunta: la respuesta corta y su ampliación. Plegado muestra sólo la
+   frase que se preguntó, así la lista de preguntas entra entera y se ve de cuál es cada
+   respuesta. Sólo el de arriba arranca abierto. */
+.grupo {
+  border: 1px solid var(--line-soft); border-radius: 10px;
+  background: var(--panel); overflow: hidden;
+}
+.grupo[open] { border-color: #33405c; }
+
+.grupo > summary {
+  list-style: none; cursor: pointer;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline; gap: 8px; padding: 8px 10px; font-size: 12.5px;
+}
+.grupo > summary::-webkit-details-marker { display: none; }
+.grupo > summary:hover { background: var(--panel-2); }
+.grupo .n { color: var(--them); font-weight: 700; font-variant-numeric: tabular-nums; }
+.grupo .frase { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grupo:not([open]) .frase { color: var(--dim); }
+.grupo .cuando { color: var(--dim); font-size: 11px; }
+.grupo .cards { display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px; }
 
 .answer {
   white-space: pre-wrap; line-height: 1.55;
-  background: var(--panel); border: 1px solid var(--line-soft);
+  background: var(--panel-2); border: 1px solid var(--line-soft);
   border-radius: 10px; padding: 10px;
 }
+/* La ampliación lleva un filo al costado: dentro del grupo se distingue de un vistazo
+   cuál es la corta y cuál la larga, sin leer la etiqueta. */
+.answer:not([data-parent=""]) { border-left: 2px solid var(--them); }
 .answer.fresh { border-color: #33405c; }
 .answer.pending .body { color: var(--dim); }
 .answer .meta {
@@ -294,12 +319,12 @@ aside {
 }
 .answer .meta .remote { color: var(--warn); }
 .answer .meta .tpl { color: var(--them); font-weight: 600; }
-.answer .quote {
-  font-size: 11.5px; color: var(--dim); margin-bottom: 7px;
-  padding-left: 8px; border-left: 2px solid var(--line);
-  max-height: 3.2em; overflow: hidden; white-space: normal;
-}
 .answer .body { white-space: normal; }
+.answer .body h4 {
+  margin: 12px 0 5px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--them);
+}
+.answer .body h4:first-child { margin-top: 0; }
 .answer .body p { margin: 0 0 7px; }
 .answer .body p:last-child { margin-bottom: 0; }
 .answer .body ul { margin: 0 0 7px; padding-left: 18px; }
@@ -329,6 +354,8 @@ aside {
   padding: 10px 15px; border-radius: 10px; max-width: 62ch;
   box-shadow: var(--shadow); z-index: 50;
 }
+/* Un aviso de que algo salió bien no puede estar pintado de error. */
+.toast.ok { background: #12241c; border-color: #2c5442; color: #c8f0dc; }
 
 @media (max-width: 1000px) {
   main { grid-template-columns: 1fr; }

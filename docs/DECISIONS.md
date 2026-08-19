@@ -487,8 +487,13 @@ escribe, empujaría hacia abajo justo el texto que se está leyendo.
 Las dos primeras versiones eligieron una de las dos y perdieron la otra. Agrupar las
 respeta a las dos.
 
-**Costo aceptado:** insertar una tarjeta ya no es "arriba de todo" sino "después del
-padre y de sus hermanas". Son cinco líneas de recorrido y evitan tener que elegir.
+El grupo es un `<details>` con un encabezado de un renglón: número, la frase que se
+preguntó y la hora. Sólo queda abierto el de arriba. Con todos abiertos el panel volvía a
+ser un muro de texto donde no se veía dónde terminaba una respuesta y empezaba la otra,
+que es exactamente lo que el agrupado venía a resolver.
+
+**Costo aceptado:** para leer una respuesta vieja hay que abrir su grupo. Es un clic, y
+sólo pasa con las que ya se leyeron.
 
 ---
 
@@ -515,3 +520,66 @@ la pide.
 
 **Costo aceptado:** se guarda en `localStorage`, así que es una sola instrucción para
 todo, no una por reunión. Si en algún momento hace falta por sesión, va a la base.
+
+---
+
+## ADR-033 — Responder al último mira la hora, no la pista
+
+**Decisión:** el botón *Responder al último* elige el turno con el `t_start` más alto de
+toda la transcripción, sin filtrar por pista.
+
+**Motivo:** filtraba por la pista `sys` ("ellos"), que suena correcto y falla en la
+práctica. El micrófono levanta también la voz de la sala, así que lo que dijo el otro
+suele quedar en `mic`; y si el process tap no tiene permiso, `sys` queda muda del todo.
+Medido en la sesión `0d951432e321`, de 18 turnos con sólo 2 en `sys`: el botón elegía
+`sys-1` en el segundo 59,8 —una frase de un minuto antes— en vez del último turno real.
+
+Tampoco alcanza con tomar la última burbuja del DOM: las burbujas se crean cuando llega
+su primer parcial, y las dos pistas no siempre transcriben en el mismo orden. Por eso se
+compara `t_start`.
+
+**Costo aceptado:** si el último que habló fui yo, el botón contesta a mi propia frase.
+Es visible al instante —la selección queda marcada antes de pedir nada— y se corrige con
+un clic en la frase que sí interesa.
+
+---
+
+## ADR-034 — El resumen de la reunión es una respuesta más
+
+**Decisión:** el botón *Resumen* manda la conversación entera al LLM y guarda lo que
+vuelve en la tabla `answers`, con la plantilla `resumen_reunion`. No hay tabla, panel ni
+protocolo aparte.
+
+**Motivo:** un resumen es exactamente lo que ya hace el resto de la app —un prompt, una
+CLI, un texto que vuelve— sólo que el fragmento es la reunión completa. Reusar `answers`
+trae gratis el guardado, el historial al reabrir la sesión, el agrupado del panel y el
+streaming mientras se escribe.
+
+**Decisiones de detalle.**
+
+*El eco entre pistas se saca antes de mandar.* El micrófono capta lo que suena por los
+parlantes, así que la misma frase aparece en `mic` y en `sys` con menos de un segundo de
+diferencia. Mandar las dos no sólo gasta contexto: el modelo lee la reunión como si cada
+cosa se hubiera dicho dos veces. Se descarta un turno si otro de menos de 2,5 s antes
+dice lo mismo ya normalizado, o lo contiene; ante el empate gana `sys`, que no tiene
+ruido de sala. Medido en `4031177656b3`: 6 turnos confirmados, 3 después del filtro.
+
+*Si no entra, se resume por tramos.* Por encima de 6000 caracteres se corta en tramos sin
+partir renglones, se resume cada uno con `resumen_parte` y después se resume el conjunto.
+Es más lento y pierde algún detalle, pero es preferible a mandar un prompt que el modelo
+va a truncar por el medio sin avisar. Medido en `ee0f5ea16438`, 160 turnos y 7745
+caracteres: 2 tramos, 31 a 41 s de punta a punta con `ollama-razonando`.
+
+*En `answers.fragmento` va una etiqueta, no la transcripción.* `"Reunión entera · 160
+turnos · 2 tramos"`. El texto completo ya está en `segments` y guardarlo de nuevo
+duplicaría la base; los turnos exactos quedan en `answers.turnos`.
+
+*El timeout sube a 300 s para esta plantilla.* Los 120 s de siempre alcanzan para una
+respuesta de dos frases, no para un resumen razonado de una reunión larga.
+
+**Costo aceptado:** la calidad del resumen no puede superar a la de la transcripción. En
+las pruebas el modelo repitió como datos de la reunión siglas que el reconocimiento de
+voz había inventado. La plantilla le avisa que el texto viene de un ASR y que no cite al
+pie de la letra lo que salió mal, pero no lo arregla: eso se arregla transcribiendo
+mejor.
+

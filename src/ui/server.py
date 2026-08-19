@@ -81,8 +81,75 @@ def format_instructions(text: str | None) -> str:
     return f"Quien te pregunta te da este contexto y estas instrucciones:\n{clean}\n"
 
 
+# La transcripción entera no entra de una en el contexto del modelo. Se corta en tramos,
+# se resume cada uno y después se resume el conjunto. El corte se mide en caracteres
+# porque es lo único que se puede contar sin cargar acá el tokenizador del modelo.
+MAX_CHARS_TRAMO = 6000
+
+_PUNCT = str.maketrans("", "", ".,;:!?¿¡\"'()[]…-—")
+
+
 def _row(row: sqlite3.Row) -> dict[str, Any]:
     return {k: row[k] for k in row.keys()}
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.lower().translate(_PUNCT).split())
+
+
+def _same_phrase(a: str, b: str) -> bool:
+    """Si dos textos ya normalizados son la misma frase.
+
+    No es igualdad a secas porque las dos pistas transcriben el mismo audio con errores
+    distintos, y porque una suele quedar cortada antes que la otra.
+    """
+    if a == b:
+        return True
+    short, long_ = (a, b) if len(a) <= len(b) else (b, a)
+    return len(short) >= 12 and short in long_
+
+
+def dedup_turns(rows: list[sqlite3.Row], window: float = 2.5) -> list[sqlite3.Row]:
+    """Saca el eco entre pistas.
+
+    El micrófono levanta también lo que suena por los parlantes, así que la misma frase
+    suele aparecer en `mic` y en `sys` con menos de un segundo de diferencia. Mandarla
+    dos veces al resumen no sólo gasta contexto: el modelo la lee como si se hubiera
+    dicho dos veces. Ante un duplicado gana `sys`, que es la fuente sin ruido de sala.
+    """
+    kept: list[sqlite3.Row] = []
+    for row in rows:
+        norm = _norm(row["text"] or "")
+        if not norm:
+            continue
+        dup = None
+        for other in reversed(kept):
+            if row["t_start"] - other["t_start"] > window:
+                break
+            if _same_phrase(norm, _norm(other["text"] or "")):
+                dup = other
+                break
+        if dup is None:
+            kept.append(row)
+        elif dup["track"] == "mic" and row["track"] == "sys":
+            kept[kept.index(dup)] = row
+    return kept
+
+
+def chunk_lines(lines: list[str], limit: int = MAX_CHARS_TRAMO) -> list[str]:
+    """Agrupa renglones en tramos de a lo sumo `limit` caracteres, sin partir renglones."""
+    chunks: list[str] = []
+    current: list[str] = []
+    size = 0
+    for line in lines:
+        if current and size + len(line) + 1 > limit:
+            chunks.append("\n".join(current))
+            current, size = [], 0
+        current.append(line)
+        size += len(line) + 1
+    if current:
+        chunks.append("\n".join(current))
+    return chunks
 
 
 def answer_language(
@@ -331,6 +398,9 @@ class Hub:
                     # ventana las pone como botón sobre cada respuesta.
                     "usa_respuesta": t.usa_respuesta,
                     "ampliar_con": t.ampliar_con,
+                    # Las de sesión corren sobre la reunión entera: la ventana las
+                    # dispara desde el botón de resumen, no desde cada frase.
+                    "alcance": t.alcance,
                 }
                 for t in self._prompts.prompts.values()
             ],
@@ -344,6 +414,24 @@ class Hub:
                 for c in self._prompts.candidates
             ],
         }
+
+    def _pick_cli(self, *wanted: str | None) -> Any:
+        """Elige con qué CLI correr.
+
+        Preferencia explícita de la ventana, si no la de la plantilla, si no la primera
+        instalada. Una preferencia que no está instalada no puede romper la llamada: se
+        cae al orden de siempre.
+        """
+        for name in wanted:
+            if not name:
+                continue
+            try:
+                candidate = bridge.pick(self._prompts.candidates, name)
+            except bridge.LlmError:
+                continue
+            if bridge.available(candidate):
+                return candidate
+        return bridge.pick(self._prompts.candidates)
 
     def ask(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Arma el prompt con los segmentos elegidos y lo manda a la CLI."""
@@ -380,22 +468,7 @@ class Hub:
             f"{SPEAKER.get(r['track'], r['track'])}: {r['text']}" for r in reversed(contexto_rows)
         )
 
-        # Preferencia explícita de la ventana, si no la de la plantilla, si no la
-        # primera instalada. Una preferencia que no está instalada no puede romper la
-        # llamada: se cae al orden de siempre.
-        spec = None
-        for wanted in (payload.get("cli"), template.cli):
-            if not wanted:
-                continue
-            try:
-                candidate = bridge.pick(self._prompts.candidates, wanted)
-            except bridge.LlmError:
-                continue
-            if bridge.available(candidate):
-                spec = candidate
-                break
-        if spec is None:
-            spec = bridge.pick(self._prompts.candidates)
+        spec = self._pick_cli(payload.get("cli"), template.cli)
         idioma = answer_language(
             rows, payload.get("idioma"), template.idioma, payload.get("propio") or "español"
         )
@@ -448,6 +521,120 @@ class Hub:
             "cli": response.cli_id,
             "local": spec.local,
             "elapsed": response.elapsed,
+        }
+
+
+    # ------------------------------------------------------------------ resumen
+
+    def session_lines(self, session_id: str) -> tuple[list[str], list[dict[str, Any]]]:
+        """La conversación entera como renglones `Quién: texto`, sin ecos ni parciales."""
+        rows = [r for r in transcript(self._conn, session_id) if (r["text"] or "").strip()]
+        # Los parciales son texto que todavía podía cambiar; si hay confirmados, sobran.
+        confirmed = [r for r in rows if r["status"] == "confirmed"]
+        kept = dedup_turns(confirmed or rows)
+        lines = [f"{SPEAKER.get(r['track'], r['track'])}: {r['text'].strip()}" for r in kept]
+        keys = [{"track": r["track"], "turn_index": r["turn_index"]} for r in kept]
+        return lines, keys
+
+    def summarize(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Resume la reunión entera.
+
+        Si la transcripción no entra en una sola pasada se resume por tramos y después
+        se resume el conjunto. Es más lento y pierde algún detalle, pero es preferible a
+        mandar un prompt que el modelo va a truncar por el medio sin avisar.
+        """
+        session_id = payload.get("session_id") or self._session_id
+        if not session_id:
+            raise RuntimeError("No hay ninguna reunión abierta para resumir.")
+
+        final = self._prompts.prompts.get("resumen_reunion")
+        if final is None:
+            raise RuntimeError("Falta la plantilla 'resumen_reunion' en config/prompts.yaml.")
+
+        lines, keys = self.session_lines(session_id)
+        if not lines:
+            raise RuntimeError("Esa reunión no tiene nada transcrito todavía.")
+
+        propio = payload.get("propio") or "español"
+        asked = payload.get("idioma")
+        idioma = asked if asked and asked != "auto" else propio
+        instrucciones = format_instructions(payload.get("instrucciones"))
+        started = time.perf_counter()
+
+        # Un resumen se pide una vez, al final, y sobre un texto mucho más largo que una
+        # respuesta: el tiempo de espera de siempre se queda corto.
+        timeout_s = max(self._prompts.timeout_s, 300.0)
+
+        chunks = chunk_lines(lines)
+        if len(chunks) > 1:
+            parte = self._prompts.prompts.get("resumen_parte")
+            if parte is None:
+                raise RuntimeError("Falta la plantilla 'resumen_parte' en config/prompts.yaml.")
+            spec_parte = self._pick_cli(parte.cli)
+            notas = []
+            for i, chunk in enumerate(chunks, 1):
+                self.emit("status", message=f"resumiendo tramo {i} de {len(chunks)}…")
+                salida = bridge.LlmCli(spec_parte, timeout_s=timeout_s).run(
+                    parte.render(fragmento=chunk, idioma=idioma)
+                )
+                notas.append(f"--- tramo {i} de {len(chunks)} ---\n{salida.text.strip()}")
+            material = "\n\n".join(notas)
+        else:
+            material = chunks[0]
+
+        spec = self._pick_cli(payload.get("cli"), final.cli)
+        etiqueta = f"Reunión entera · {len(keys)} turnos"
+        if len(chunks) > 1:
+            etiqueta += f" · {len(chunks)} tramos"
+
+        self.emit("status", message="armando el resumen…")
+        self.emit(
+            "answer_start",
+            template=final.id,
+            cli=spec.id,
+            local=spec.local,
+            idioma=idioma,
+            fragmento=etiqueta,
+            parent_id=None,
+        )
+        response = bridge.LlmCli(spec, timeout_s=timeout_s).run(
+            final.render(fragmento=material, idioma=idioma, instrucciones=instrucciones),
+            on_chunk=lambda piece: self.emit("answer_chunk", text=piece),
+        )
+
+        created_at = time.time()
+        # Se guarda como una respuesta más: así vuelve sola al reabrir la sesión, sin
+        # una tabla ni un panel aparte. En `fragmento` va la etiqueta y no la
+        # transcripción: el texto completo ya está en `segments`, y los turnos exactos
+        # quedan en `turnos`.
+        answer_id = save_answer(
+            self._conn,
+            session_id=session_id,
+            created_at=created_at,
+            template=final.id,
+            cli=response.cli_id,
+            local=spec.local,
+            lang=idioma,
+            fragmento=etiqueta,
+            turnos=json.dumps(keys),
+            text=response.text,
+            parent_id=None,
+        )
+        self.emit("status", message="resumen listo")
+        return {
+            "id": answer_id,
+            "created_at": created_at,
+            "template": final.id,
+            "fragmento": etiqueta,
+            "turnos": json.dumps(keys),
+            "parent_id": None,
+            "text": response.text,
+            "idioma": idioma,
+            "cli": response.cli_id,
+            "local": spec.local,
+            "elapsed": time.perf_counter() - started,
+            "tramos": len(chunks),
+            "turnos_usados": len(keys),
         }
 
 
@@ -504,6 +691,9 @@ async def dispatch(hub: Hub, socket: ServerConnection, message: dict[str, Any]) 
         await socket.send(json.dumps({"type": "search_result", "rows": rows}))
     elif kind == "ask":
         answer = await asyncio.to_thread(hub.ask, message)
+        await socket.send(json.dumps({"type": "answer", **answer}))
+    elif kind == "resumen":
+        answer = await asyncio.to_thread(hub.summarize, message)
         await socket.send(json.dumps({"type": "answer", **answer}))
     else:
         raise RuntimeError(f"Mensaje desconocido: {kind!r}")
