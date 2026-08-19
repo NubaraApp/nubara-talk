@@ -1,4 +1,4 @@
-// Ventana nativa de granola-local.
+// Ventana nativa de nubara-talk.
 //
 // La ventana no hace nada más que mostrar `src/ui/web` y mantener vivo el sidecar de
 // Python, que es donde vive toda la lógica. Se hablan por un WebSocket en 127.0.0.1.
@@ -16,7 +16,7 @@ struct Sidecar(Mutex<Option<Child>>);
 /// Raíz del repo. En desarrollo se corre desde `src-tauri/`; empaquetado, el sidecar
 /// se resuelve contra el directorio de recursos del bundle.
 fn project_root() -> PathBuf {
-    if let Ok(dir) = std::env::var("GRANOLA_ROOT") {
+    if let Ok(dir) = std::env::var("NUBARA_ROOT") {
         return PathBuf::from(dir);
     }
     let cwd = std::env::current_dir().unwrap_or_default();
@@ -31,7 +31,7 @@ fn project_root() -> PathBuf {
     // Empaquetado, el cwd es "/" y no hay nada que buscar. La ruta del repo queda
     // grabada al compilar: alcanza para una app personal, y es lo que permite correrla
     // desde /Applications, que es donde el sistema la reconoce para darle permisos.
-    // Se puede pisar con GRANOLA_ROOT.
+    // Se puede pisar con NUBARA_ROOT.
     let compiled = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     if let Some(parent) = compiled.parent() {
         if parent.join("src/ui/server.py").exists() {
@@ -70,7 +70,7 @@ fn main() {
                     *state.0.lock().unwrap() = Some(child);
                 }
                 Err(err) => {
-                    eprintln!("granola-local: no se pudo arrancar el sidecar: {err}");
+                    eprintln!("nubara-talk: no se pudo arrancar el sidecar: {err}");
                 }
             }
             Ok(())

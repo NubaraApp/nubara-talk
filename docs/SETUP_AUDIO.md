@@ -66,7 +66,7 @@ integradas:
 /tmp/make_multioutput "AirPods" "BlackHole"
 ```
 
-Es idempotente: si ya existe un agregado con el UID `com.granola-local.multioutput`, lo
+Es idempotente: si ya existe un agregado con el UID `com.nubara-talk.multioutput`, lo
 destruye y lo vuelve a crear.
 
 Para volver atrás, elegí tu salida normal en el menú de volumen. Para borrar el
@@ -137,13 +137,13 @@ El process tap de Core Audio no necesita BlackHole ni Multi-Output. **Sólo func
 lanzando la app desde `/Applications`.**
 
 ```bash
-cd ~/Documents/granola-local
+cd ~/Documents/nubara-talk
 export PATH="$HOME/.cargo/bin:$PATH"
 npx tauri build
-codesign --force --deep --sign - --identifier com.granola-local.app \
-  src-tauri/target/release/bundle/macos/granola-local.app
-cp -R src-tauri/target/release/bundle/macos/granola-local.app /Applications/
-open -a /Applications/granola-local.app
+codesign --force --deep --sign - --identifier com.nubara-talk.app \
+  src-tauri/target/release/bundle/macos/nubara-talk.app
+cp -R src-tauri/target/release/bundle/macos/nubara-talk.app /Applications/
+open -a /Applications/nubara-talk.app
 ```
 
 En la ventana, tildá **captura nativa** antes de darle a Empezar.

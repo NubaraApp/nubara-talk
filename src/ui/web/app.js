@@ -1,4 +1,4 @@
-// Cara de granola-local. Toda la lógica vive en el sidecar de Python; esto pinta lo
+// Cara de nubara-talk. Toda la lógica vive en el sidecar de Python; esto pinta lo
 // que llega por el WebSocket y manda de vuelta lo que el usuario pide.
 
 const PORT = new URLSearchParams(location.search).get("port") || "8765";

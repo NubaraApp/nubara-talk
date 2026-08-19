@@ -18,7 +18,7 @@ import Foundation
 func check(_ status: OSStatus, _ what: String) {
     guard status == noErr else {
         let code = String(format: "%d", status)
-        FileHandle.standardError.write("granola-tap: \(what) falló con OSStatus \(code)\n".data(using: .utf8)!)
+        FileHandle.standardError.write("nubara-tap: \(what) falló con OSStatus \(code)\n".data(using: .utf8)!)
         exit(2)
     }
 }
@@ -139,7 +139,7 @@ var excluded: [AudioObjectID] = []
 var args = Array(CommandLine.arguments.dropFirst())
 while let i = args.firstIndex(of: "--exclude-pid") {
     guard i + 1 < args.count, let pid = Int32(args[i + 1]) else {
-        FileHandle.standardError.write("granola-tap: --exclude-pid necesita un PID\n".data(using: .utf8)!)
+        FileHandle.standardError.write("nubara-tap: --exclude-pid necesita un PID\n".data(using: .utf8)!)
         exit(64)
     }
     var addr = AudioObjectPropertyAddress(
@@ -162,18 +162,18 @@ let output = defaultOutputDevice()
 let outputUID = deviceUID(output)
 
 let env = ProcessInfo.processInfo.environment
-let desc = env["GRANOLA_TAP_STEREO"] != nil
+let desc = env["NUBARA_TAP_STEREO"] != nil
     ? CATapDescription(stereoGlobalTapButExcludeProcesses: excluded)
     : CATapDescription(monoGlobalTapButExcludeProcesses: excluded)
-desc.name = "granola-local tap"
-desc.isPrivate = env["GRANOLA_TAP_PUBLIC"] == nil
+desc.name = "nubara-talk tap"
+desc.isPrivate = env["NUBARA_TAP_PUBLIC"] == nil
 desc.muteBehavior = CATapMuteBehavior.unmuted
 
 var tapID = AudioObjectID(kAudioObjectUnknown)
 let tapStatus = AudioHardwareCreateProcessTap(desc, &tapID)
 if tapStatus != noErr {
     FileHandle.standardError.write("""
-    granola-tap: AudioHardwareCreateProcessTap falló con OSStatus \(tapStatus).
+    nubara-tap: AudioHardwareCreateProcessTap falló con OSStatus \(tapStatus).
     Si es -4 (unimplemented) o 560947818 ('!pri'), falta el permiso de grabación de
     audio del sistema: Ajustes > Privacidad y seguridad > Grabación de audio.
 
@@ -181,9 +181,9 @@ if tapStatus != noErr {
     exit(3)
 }
 
-let aggUID = "com.granola-local.tap.\(ProcessInfo.processInfo.processIdentifier)"
+let aggUID = "com.nubara-talk.tap.\(ProcessInfo.processInfo.processIdentifier)"
 let aggDescription: [String: Any] = [
-    kAudioAggregateDeviceNameKey: "granola-local Tap",
+    kAudioAggregateDeviceNameKey: "nubara-talk Tap",
     kAudioAggregateDeviceUIDKey: aggUID,
     kAudioAggregateDeviceMainSubDeviceKey: outputUID,
     kAudioAggregateDeviceIsPrivateKey: true,
@@ -202,12 +202,12 @@ check(AudioHardwareCreateAggregateDevice(aggDescription as CFDictionary, &aggID)
 
 let asbd = tapFormat(tapID)
 let channels = Int(asbd.mChannelsPerFrame)
-if ProcessInfo.processInfo.environment["GRANOLA_TAP_DEBUG"] != nil {
+if ProcessInfo.processInfo.environment["NUBARA_TAP_DEBUG"] != nil {
     FileHandle.standardError.write(
-        "granola-tap: tapUID=\(tapUID(tapID)) descUUID=\(desc.uuid.uuidString) "
+        "nubara-tap: tapUID=\(tapUID(tapID)) descUUID=\(desc.uuid.uuidString) "
             .appending("aggInputCh=\(inputChannels(aggID)) salida=\(outputUID)\n")
             .data(using: .utf8)!)
-    FileHandle.standardError.write("granola-tap: asbd sr=\(asbd.mSampleRate) ch=\(channels)"
+    FileHandle.standardError.write("nubara-tap: asbd sr=\(asbd.mSampleRate) ch=\(channels)"
         .appending(" fmt=\(asbd.mFormatFlags) bpf=\(asbd.mBytesPerFrame)\n").data(using: .utf8)!)
 }
 let sampleRate = asbd.mSampleRate
@@ -218,7 +218,7 @@ FileHandle.standardOutput.write(header.data(using: .utf8)!)
 
 let ring = Ring(capacity: Int(sampleRate) * 8)  // 8 s de margen
 
-let debug = ProcessInfo.processInfo.environment["GRANOLA_TAP_DEBUG"] != nil
+let debug = ProcessInfo.processInfo.environment["NUBARA_TAP_DEBUG"] != nil
 nonisolated(unsafe) var debugCount = 0
 
 var procID: AudioDeviceIOProcID?
@@ -227,7 +227,7 @@ check(AudioDeviceCreateIOProcIDWithBlock(&procID, aggID, nil) { _, inInput, _, _
     let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inInput))
     if debug, debugCount < 3 {
         debugCount += 1
-        var line = "granola-tap: cb buffers=\(list.count)"
+        var line = "nubara-tap: cb buffers=\(list.count)"
         for b in list { line += " [ch=\(b.mNumberChannels) bytes=\(b.mDataByteSize)]" }
         FileHandle.standardError.write((line + "\n").data(using: .utf8)!)
     }
@@ -294,5 +294,5 @@ if let procID { AudioDeviceDestroyIOProcID(aggID, procID) }
 AudioHardwareDestroyAggregateDevice(aggID)
 AudioHardwareDestroyProcessTap(tapID)
 if ring.dropped > 0 {
-    FileHandle.standardError.write("granola-tap: \(ring.dropped) muestras perdidas\n".data(using: .utf8)!)
+    FileHandle.standardError.write("nubara-tap: \(ring.dropped) muestras perdidas\n".data(using: .utf8)!)
 }

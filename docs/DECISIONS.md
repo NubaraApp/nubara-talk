@@ -292,7 +292,7 @@ el socket no es alcanzable desde afuera de la máquina.
 
 ## ADR-021 — La captura nativa sólo funciona lanzada desde la app
 
-**Decisión:** el process tap de F4 se usa desde `granola-local.app` instalada en
+**Decisión:** el process tap de F4 se usa desde `nubara-talk.app` instalada en
 `/Applications`. Desde una terminal no se usa: se deja `BlackHoleSource`.
 
 **Motivo:** no es una preferencia, es cómo funciona el permiso. El mismo binario del
@@ -651,3 +651,32 @@ adentro sigue siendo el de FTS5, que es otra cosa — busca en lo que se dijo.
 
 **Costo aceptado:** el listado corta en 50 sesiones, que es lo que devuelve el sidecar.
 Con más reuniones que eso van a faltar las viejas y va a hacer falta paginar.
+
+## ADR-037 — El proyecto se llama nubara-talk
+
+**Decisión:** el proyecto pasa de `granola-local` a `nubara-talk`. Cambian con él el
+identificador del bundle (`com.granola-local.app` → `com.nubara-talk.app`), el del helper
+del tap (`com.nubara-talk.tap`), el UID del agregado de salida
+(`com.nubara-talk.multioutput`), el nombre del helper (`nubara-tap`), las variables de
+entorno (`NUBARA_ROOT`, `NUBARA_TAP_*`), el archivo de la base (`data/nubara.sqlite`) y el
+directorio del repo.
+
+**Motivo:** el nombre viejo describía de dónde salió la idea, no lo que la cosa es.
+
+**Costo aceptado — hay que migrar a mano tres cosas.** Ninguna la puede hacer el código:
+
+*El permiso de audio se pierde.* macOS le da el permiso a un identificador de bundle, no
+a un nombre ni a una ruta. Con `com.nubara-talk.app` el sistema ve una app nueva y vuelve
+a preguntar: hay que aceptar de nuevo el micrófono y la grabación de audio del sistema, y
+conviene borrar las entradas viejas de `granola-local` en **Privacidad y seguridad**, que
+quedan huérfanas.
+
+*El agregado de salida se duplica.* `make_multioutput.swift` es idempotente contra su
+propio UID; con el UID nuevo no reconoce al viejo y crea un segundo dispositivo. El
+"granola-local Multi-Output" hay que borrarlo desde Configuración de Audio MIDI y elegir
+el nuevo como salida.
+
+*La base no se mueve sola.* `DEFAULT_DB_PATH` apunta a `data/nubara.sqlite`; con la app
+cerrada hay que renombrar `data/granola.sqlite` y sus archivos `-wal` y `-shm`. Sin eso
+la app arranca contra una base vacía y las reuniones anteriores parecen desaparecidas,
+aunque siguen en el disco.

@@ -185,7 +185,7 @@ Con reuniones largas eso hay que mirarlo.
 
 ### F4, segunda vuelta: con la app instalada
 
-Lanzando `granola-local.app` desde `/Applications` y tildando *captura nativa*, el tap
+Lanzando `nubara-talk.app` desde `/Applications` y tildando *captura nativa*, el tap
 entrega audio. Tres frases por `say`, tres turnos transcritos en la pista `sys`:
 
 ```

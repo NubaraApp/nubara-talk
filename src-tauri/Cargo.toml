@@ -1,5 +1,5 @@
 [package]
-name = "granola-local"
+name = "nubara-talk"
 version = "0.1.0"
 description = "Transcripcion y traduccion local de reuniones"
 edition = "2021"

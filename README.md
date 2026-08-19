@@ -1,4 +1,4 @@
-# granola-local
+# nubara-talk
 
 App de escritorio para macOS que captura, transcribe y traduce reuniones **en local**.
 Sin API de pago, sin telemetría, sin red.
@@ -57,7 +57,7 @@ source .venv/bin/activate
 python -m src.spikes.f1_transcribe --seconds 60
 ```
 
-Transcribe las dos pistas en vivo y las guarda en `data/granola.sqlite`. `*` marca turno
+Transcribe las dos pistas en vivo y las guarda en `data/nubara.sqlite`. `*` marca turno
 cerrado; las líneas sin marca son parciales. La primera corrida descarga el modelo
 (~1.6 GB) y tarda unos 30 s de más.
 

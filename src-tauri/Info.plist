@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
   <key>NSMicrophoneUsageDescription</key>
-  <string>granola-local transcribe tu microfono en tu propia maquina. El audio no sale de aca.</string>
+  <string>nubara-talk transcribe tu microfono en tu propia maquina. El audio no sale de aca.</string>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>granola-local transcribe el audio de la reunion en tu propia maquina. El audio no sale de aca.</string>
+  <string>nubara-talk transcribe el audio de la reunion en tu propia maquina. El audio no sale de aca.</string>
 </dict>
 </plist>

@@ -34,8 +34,8 @@ _QUEUE_MAX_BLOCKS = 600
 
 _SRC = Path(__file__).with_name("tap_helper.swift")
 _BUILD = Path(__file__).resolve().parents[2] / "build"
-_APP = _BUILD / "granola-tap.app"
-_BIN = _APP / "Contents" / "MacOS" / "granola-tap"
+_APP = _BUILD / "nubara-tap.app"
+_BIN = _APP / "Contents" / "MacOS" / "nubara-tap"
 
 # El tap es una API con permiso: sin identidad de bundle, el sistema no tiene a quién
 # pedirle autorización y devuelve silencio en vez de un error. Por eso el helper se
@@ -45,15 +45,15 @@ _PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key><string>com.granola-local.tap</string>
-  <key>CFBundleName</key><string>granola-local tap</string>
-  <key>CFBundleExecutable</key><string>granola-tap</string>
+  <key>CFBundleIdentifier</key><string>com.nubara-talk.tap</string>
+  <key>CFBundleName</key><string>nubara-talk tap</string>
+  <key>CFBundleExecutable</key><string>nubara-tap</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSBackgroundOnly</key><true/>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>granola-local transcribe el audio de la reunion en tu propia maquina.</string>
+  <string>nubara-talk transcribe el audio de la reunion en tu propia maquina.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>granola-local captura tu microfono para transcribirlo en tu propia maquina.</string>
+  <string>nubara-talk captura tu microfono para transcribirlo en tu propia maquina.</string>
 </dict>
 </plist>
 """
@@ -71,7 +71,7 @@ def build_helper(force: bool = False) -> Path:
         )
 
     _BIN.parent.mkdir(parents=True, exist_ok=True)
-    plist = _BUILD / "granola-tap.plist"
+    plist = _BUILD / "nubara-tap.plist"
     plist.write_text(_PLIST)
     (_APP / "Contents" / "Info.plist").write_text(_PLIST)
 
@@ -86,7 +86,7 @@ def build_helper(force: bool = False) -> Path:
         check=True,
     )
     subprocess.run(
-        ["codesign", "--force", "--sign", "-", "--identifier", "com.granola-local.tap", str(_APP)],
+        ["codesign", "--force", "--sign", "-", "--identifier", "com.nubara-talk.tap", str(_APP)],
         check=True,
         capture_output=True,
     )

@@ -10,8 +10,8 @@
 import CoreAudio
 import Foundation
 
-let AGGREGATE_UID = "com.granola-local.multioutput"
-let AGGREGATE_NAME = "granola-local Multi-Output"
+let AGGREGATE_UID = "com.nubara-talk.multioutput"
+let AGGREGATE_NAME = "nubara-talk Multi-Output"
 
 let systemObject = AudioObjectID(kAudioObjectSystemObject)
 

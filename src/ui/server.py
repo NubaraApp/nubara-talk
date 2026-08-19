@@ -792,7 +792,7 @@ async def main_async(db: Path, config: Path | None, port: int) -> None:
 
     async with serve(lambda s: handle(hub, s), HOST, port):
         log.info("sidecar escuchando en ws://%s:%d", HOST, port)
-        print(f"granola-local sidecar en ws://{HOST}:{port}", flush=True)
+        print(f"nubara-talk sidecar en ws://{HOST}:{port}", flush=True)
         try:
             await asyncio.Future()
         finally:
@@ -804,7 +804,7 @@ def main() -> int:
     import argparse
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    parser = argparse.ArgumentParser(description="Sidecar de la UI de granola-local")
+    parser = argparse.ArgumentParser(description="Sidecar de la UI de nubara-talk")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH)
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--port", type=int, default=PORT)

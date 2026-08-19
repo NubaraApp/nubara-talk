@@ -11,7 +11,7 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-DEFAULT_DB_PATH = Path("data/granola.sqlite")
+DEFAULT_DB_PATH = Path("data/nubara.sqlite")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
