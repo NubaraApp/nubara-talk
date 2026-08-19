@@ -901,6 +901,34 @@ function setAside(px) {
   });
 })();
 
+// Apariencia: al seguir al sistema se aplica la preferencia detectada y se actualiza si
+// macOS cambia de aspecto mientras la app está abierta.
+(function setupTema() {
+  const selector = el("tema");
+  const stored = localStorage.getItem("tema") || "system";
+  const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+  const apply = (theme) => {
+    document.documentElement.dataset.theme = theme === "system"
+      ? (systemDark.matches ? "dark" : "light")
+      : theme;
+  };
+
+  selector.value = ["system", "light", "dark"].includes(stored) ? stored : "system";
+  apply(selector.value);
+  selector.addEventListener("change", () => {
+    apply(selector.value);
+    try {
+      localStorage.setItem("tema", selector.value);
+    } catch (error) {
+      // Si el storage no está disponible, la apariencia vale durante esta ventana.
+    }
+  });
+  systemDark.addEventListener("change", () => {
+    if (selector.value === "system") apply("system");
+  });
+})();
+
 (function setupSplitter() {
   const splitter = el("splitter");
   const stored = Number(localStorage.getItem("aside"));
