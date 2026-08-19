@@ -133,6 +133,8 @@ el final de la reunión. Ver ADR-034.
       en `ee0f5ea16438` salieron en 2 tramos
 - [x] Queda guardado y vuelve al reabrir la sesión — es una fila de `answers`
 - [x] Tarda menos de 300 s — 31,4 s con 160 turnos, 14,1 s con 3
+- [x] La sesión queda nombrada por lo que dice el resumen, y el panel lo muestra en vez
+      de la hora — 0,46 s la llamada del título; ver ADR-035
 
 **Sin verificar:** todo lo medido salió de reuniones de prueba de pocos minutos. No se
 probó con una reunión de una hora, que es donde el resumen por tramos empieza a importar

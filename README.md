@@ -73,6 +73,9 @@ Al terminar, el botón **Resumen** de la ventana manda la conversación entera a
 devuelve un resumen con temas, decisiones, tareas, preguntas abiertas y datos. Queda
 guardado con las demás respuestas, así que vuelve solo al reabrir la sesión.
 
+De paso le pone nombre a la reunión: en la lista de sesiones, en vez de `Hoy 17:12`,
+queda `Arquitectura técnica y roles para nueva aplicación`, con la hora abajo.
+
 Sin abrir la ventana:
 
 ```bash

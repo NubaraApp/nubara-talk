@@ -294,3 +294,8 @@ tramos y el resumen final.
 **Lo que no mide esto:** la calidad. El modelo repitió como datos de la reunión siglas
 que el reconocimiento de voz había inventado (`LCL`, `tests de Cuba`). El resumen no
 puede ser mejor que la transcripción de la que sale.
+
+El título de la sesión sale de una segunda llamada, sobre el resumen ya escrito y no
+sobre la transcripción: **0,46 s** con `ollama` y `--think=false`, sobre un resumen de
+3121 caracteres.
+

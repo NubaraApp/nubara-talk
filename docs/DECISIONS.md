@@ -583,3 +583,35 @@ voz había inventado. La plantilla le avisa que el texto viene de un ASR y que n
 pie de la letra lo que salió mal, pero no lo arregla: eso se arregla transcribiendo
 mejor.
 
+---
+
+## ADR-035 — La sesión se llama como el resumen dice que se llama
+
+**Decisión:** al terminar el resumen se hace una segunda llamada corta, con la plantilla
+`titulo_reunion`, que devuelve un título de tres a ocho palabras. Se guarda en
+`sessions.title` y pasa a ser el renglón de arriba de cada sesión en el panel; la fecha
+y la cantidad de segmentos bajan al renglón chico.
+
+**Motivo:** la lista decía `Hoy 17:12`, `Hoy 17:03`, `Hoy 16:59`. Cinco reuniones del
+mismo día son cinco horas distintas y ninguna pista de cuál es cuál. El resumen ya sabe
+de qué se trató; sólo faltaba escribirlo donde se busca.
+
+**Decisiones de detalle.**
+
+*El título sale del resumen, no de la transcripción.* El resumen ya decantó de qué se
+trató, así que alcanza con un prompt corto sobre 3000 caracteres en vez de otra pasada
+sobre la reunión entera. Medido: 0,46 s con `ollama` y `--think=false`.
+
+*Se limpia lo que vuelve.* Se le pide un título solo, en un renglón y sin comillas, y
+vuelve igual con `**Título:**` adelante, entre comillas o con un párrafo de yapa debajo.
+`clean_title()` se queda con el primer renglón con texto, le saca el markdown, el
+prefijo y las comillas, y lo corta a 80 caracteres.
+
+*Si falla, no pasa nada.* El título se pide después de guardar el resumen y el error se
+traga con un log. Quedarse sin nombre es molesto; perder el resumen porque no se pudo
+nombrar sería absurdo.
+
+**Costo aceptado:** una sesión que no se resumió no tiene título y sigue mostrando la
+fecha. Es correcto: nadie escribió todavía de qué se trató. Y el título no se puede
+editar a mano — si el modelo le erra, hay que volver a resumir.
+

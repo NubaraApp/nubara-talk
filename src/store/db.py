@@ -119,6 +119,12 @@ def create_session(conn: sqlite3.Connection, session_id: str, started_at: float)
     conn.commit()
 
 
+def set_session_title(conn: sqlite3.Connection, session_id: str, title: str) -> None:
+    """Le pone nombre a la sesión. Lo escribe el resumen, no el usuario."""
+    conn.execute("UPDATE sessions SET title = ? WHERE id = ?", (title, session_id))
+    conn.commit()
+
+
 def end_session(conn: sqlite3.Connection, session_id: str, ended_at: float) -> None:
     conn.execute("UPDATE sessions SET ended_at = ? WHERE id = ?", (ended_at, session_id))
     conn.commit()

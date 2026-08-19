@@ -190,3 +190,18 @@ prompts:
 
       No inventes nada que no esté en la transcripción. Sin preámbulo ni comentarios
       sobre la tarea.
+
+  - id: titulo_reunion
+    alcance: sesion
+    idioma: propio
+    corto: Título
+    nombre: Título de la reunión
+    descripcion: Nombra la reunión en pocas palabras, a partir del resumen ya escrito.
+    plantilla: |
+      Este es el resumen de una reunión:
+
+      {fragmento}
+
+      Devolvé un título de entre tres y ocho palabras en {idioma} que diga de qué se
+      trató. Solo el título, en un renglón, sin comillas, sin punto final y sin ninguna
+      palabra más.

@@ -643,9 +643,15 @@ function onSessions(rows) {
     const item = document.createElement("div");
     item.className = "session";
     const when = row.ended_at ? "" : " · abierta";
-    item.innerHTML = `<div>${sessionLabel(row)}</div>
-      <small>${row.segmentos} segmento${row.segmentos === 1 ? "" : "s"}${when}</small>`;
-    item.title = row.id;
+    const cuando = sessionLabel(row);
+    // El título lo escribe el resumen. Mientras no se haya resumido, la fecha es lo
+    // único que hay para distinguir una sesión de otra, así que sigue siendo el
+    // renglón de arriba.
+    const titulo = (row.title || "").trim();
+    const cuenta = `${row.segmentos} segmento${row.segmentos === 1 ? "" : "s"}`;
+    item.innerHTML = `<div class="nombre">${escapeHtml(titulo || cuando)}</div>
+      <small>${titulo ? `${cuando} · ` : ""}${cuenta}${when}</small>`;
+    item.title = titulo ? `${titulo}\n${cuando} · ${row.id}` : row.id;
     item.onclick = () => send({ type: "transcript", session_id: row.id });
     box.appendChild(item);
   }

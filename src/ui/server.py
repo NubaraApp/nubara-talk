@@ -36,6 +36,7 @@ from src.store.db import (
     end_session,
     save_answer,
     search,
+    set_session_title,
     transcript,
     update_translation,
 )
@@ -134,6 +135,41 @@ def dedup_turns(rows: list[sqlite3.Row], window: float = 2.5) -> list[sqlite3.Ro
         elif dup["track"] == "mic" and row["track"] == "sys":
             kept[kept.index(dup)] = row
     return kept
+
+
+# Un título que no entra en el panel no sirve de título.
+MAX_TITULO = 80
+
+_PREFIJOS_TITULO = ("título:", "titulo:", "title:")
+
+
+def clean_title(text: str) -> str:
+    """Deja un renglón limpio con el título.
+
+    Se le pide al modelo un título solo, en un renglón y sin comillas, y aun así vuelve
+    a veces entre comillas, con `Título:` adelante o con un párrafo de yapa debajo.
+    """
+    line = ""
+    for raw in (text or "").splitlines():
+        # Un título no necesita markdown; sacarlo entero evita quedarse con los `**`
+        # sueltos cuando el modelo escribe `**Título:** "..."`.
+        candidate = raw.replace("*", "").replace("#", "").strip()
+        if candidate:
+            line = candidate
+            break
+    lowered = line.lower()
+    for prefijo in _PREFIJOS_TITULO:
+        if lowered.startswith(prefijo):
+            line = line[len(prefijo) :].strip()
+            break
+    # De a un carácter y no con un solo `strip`: el modelo cierra con `".` y con un
+    # `strip` de comillas el punto de atrás tapa a la comilla.
+    line = line.strip()
+    while line and line[-1] in '."\'“”»':
+        line = line[:-1].rstrip()
+    while line and line[0] in '"\'“”«':
+        line = line[1:].lstrip()
+    return line[:MAX_TITULO].strip()
 
 
 def chunk_lines(lines: list[str], limit: int = MAX_CHARS_TRAMO) -> list[str]:
@@ -367,7 +403,7 @@ class Hub:
     def sessions(self) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             """
-            SELECT s.id, s.started_at, s.ended_at, COUNT(g.id) AS segmentos
+            SELECT s.id, s.started_at, s.ended_at, s.title, COUNT(g.id) AS segmentos
             FROM sessions s LEFT JOIN segments g ON g.session_id = s.id
             GROUP BY s.id ORDER BY s.started_at DESC LIMIT 50
             """
@@ -536,6 +572,29 @@ class Hub:
         keys = [{"track": r["track"], "turn_index": r["turn_index"]} for r in kept]
         return lines, keys
 
+    def name_session(self, session_id: str, resumen: str, idioma: str) -> str:
+        """Le pone nombre a la sesión a partir del resumen recién escrito.
+
+        Sale del resumen y no de la transcripción: el resumen ya decantó de qué se
+        trató, así que el título sale de un prompt corto y barato en vez de otra pasada
+        sobre la reunión entera.
+        """
+        template = self._prompts.prompts.get("titulo_reunion")
+        if template is None:
+            return ""
+        spec = self._pick_cli(template.cli)
+        try:
+            salida = bridge.LlmCli(spec, timeout_s=self._prompts.timeout_s).run(
+                template.render(fragmento=resumen[:MAX_CHARS_TRAMO], idioma=idioma)
+            )
+        except Exception:  # noqa: BLE001 — el resumen ya está guardado; el título es de más
+            log.exception("no se pudo nombrar la sesión %s", session_id)
+            return ""
+        titulo = clean_title(salida.text)
+        if titulo:
+            set_session_title(self._conn, session_id, titulo)
+        return titulo
+
     def summarize(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Resume la reunión entera.
 
@@ -620,8 +679,13 @@ class Hub:
             text=response.text,
             parent_id=None,
         )
+        # El título va después de guardar: si falla, el resumen ya está a salvo.
+        self.emit("status", message="nombrando la reunión…")
+        titulo = self.name_session(session_id, response.text, idioma)
+        self.emit("sessions", rows=self.sessions())
         self.emit("status", message="resumen listo")
         return {
+            "titulo": titulo,
             "id": answer_id,
             "created_at": created_at,
             "template": final.id,

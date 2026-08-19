@@ -345,6 +345,8 @@ aside {
 }
 .hit:hover, .session:hover { background: var(--panel); border-color: var(--line); }
 .hit small, .session small { color: var(--dim); font-size: 11px; }
+/* El título lo escribe el modelo y puede venir largo. Una sola línea, con puntos. */
+.session .nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ------------------------------------------------------------------ avisos */
 
